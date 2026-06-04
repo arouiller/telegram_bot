@@ -1,13 +1,47 @@
 import telebot
 from telebot import types
+import requests
 
 # Token for the Telegram bot
 TOKEN = '8852894730:AAGQxmUErRvv72Tmkx_KqSW0XRjSn3yg934'
+
+#API Key for https://openweathermap.org/api
+API_KEY = '9a46e7f26dc8dac780cd81008a3eb3fa'
+#URL for the OpenWeatherMap API
+WEATHER_URL = 'https://api.openweathermap.org/data/4.0/onecall/current?'
+#WEATHER_URL = 'https://api.openweathermap.org/data/2.5/weather?'
+# Latitud y longitud de Cerrito, Argentina
+LATITUDE = -31.58044
+LONGITUDE = -60.07581
+
+#funcion para obtener el clima actual
+def get_weather(latitude, longitude):
+    complete_url = WEATHER_URL + "lat=" + str(latitude) + "&lon=" + str(longitude) + "&appid=" + API_KEY + "&units=metric&lang=es"
+    response = requests.get(complete_url)
+    data = response.json()
+    
+    if data["cod"] != "404":
+        main = data["main"]
+        temperature = main["temp"]
+        humidity = main["humidity"]
+        weather_desc = data["weather"][0]["description"]
+        return f"Temperatura: {temperature}°C\nHumedad: {humidity}%\nDescripción: {weather_desc}"
+    elif data["cod"] == "401":
+        return data["message"]
+    else:
+        return "No se pudo obtener el clima."   
 
 # Initialize the bot with the token
 bot = telebot.TeleBot(TOKEN)
 
 # Creacion de comandos simples
+
+# Comando /clima
+@bot.message_handler(func=lambda message: message.text and message.text.lower() == 'clima')
+def send_weather(message):
+    weather_info = get_weather(LATITUDE, LONGITUDE)
+    bot.reply_to(message, weather_info)
+
 # Comando /start
 @bot.message_handler(commands=['start'])
 def send_welcome(message):

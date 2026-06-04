@@ -13,4 +13,5 @@ Este repositorio contiene el codigo para crear un bot basico de telegram utiliza
 ## Funcionalidades
 
 - Responde a los comandos `\start` y `\help`
+- Responde a los textos: `entrenamiento` y `clima`
 - Repite cualquier otro mensaje que le envíen
