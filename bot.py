@@ -2,18 +2,43 @@ from flask import Flask, request
 import telebot
 import requests
 from telebot import types
+from google_adk import Agent, tool, run
 
 app = Flask(__name__)
 
+# Telegram
 TOKEN = "8852894730:AAGQxmUErRvv72Tmkx_KqSW0XRjSn3yg934"
 API_URL = f"https://api.telegram.org/bot{TOKEN}/"
 
-
-#API Key for https://openweathermap.org/api
+#Clima
 API_KEY = '9a46e7f26dc8dac780cd81008a3eb3fa'
-#URL for the OpenWeatherMap API
-#WEATHER_URL = 'https://api.openweathermap.org/data/4.0/onecall/current?'
 WEATHER_URL = 'https://api.openweathermap.org/data/2.5/weather?'
+
+#Gemini
+GEMINI_API_KEY = 'AIzaSyC9n8sXo2m1Zt3v5j8k9l0m1n2o3p4q5r6s7t8u9v0w1x2y3z4a5b6c7d8e9f0g1h2i3j4k5l6m7n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2g3h4i5j6k7l8m9n0o1p2q3r4s5t6u7v8w9x0y1z2a3b4c5d6e7f8g9h0i1j2k3l4m5n6o7p8q9r0s1t2u3v4w5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0m1n2o3p4q5r6s7t8u9v0w1x2y3z4a5b6c7d8e9f0g1h2i3j4k5l6m7n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2g3h4i5j6k7l8m9n0o1p2q3r4s5t6u7v8w9x0y1z2a3b4c5d6e7f8g9h0i1j2k3l4m5
+
+# 1. Define una herramienta personalizada
+@tool
+def obtener_capital(pais: str) -> str:
+    """Consulta la capital de un país específico."""
+    capitales = {"Francia": "París", "Japón": "Tokio", "Argentina": "Buenos Aires"}
+    return capitales.get(pais, "Capital desconocida")
+
+# 2. Crea el agente con su perfil, modelo y herramientas
+def consultar_agente():
+    mi_agente = Agent(
+        name="Asistente Geográfico",
+        model="gemini-1.5-pro", # Puedes especificar otros modelos
+        api_key=GEMINI_API_KEY,
+        tools=[obtener_capital],
+        instructions="Eres un asistente experto en geografía. Usa tus herramientas cuando sea necesario."
+    )
+
+    # 3. Ejecuta el agente con un objetivo
+    respuesta = run(mi_agente, "Hola, ¿cuál es la capital de Francia y qué país tiene a Buenos Aires como capital?")
+    return respuesta
+
+
 # Latitud y longitud de Cerrito, Argentina
 LATITUDE = -31.58044
 LONGITUDE = -60.07581
@@ -68,6 +93,13 @@ def send_training_options(message):
 
     markup.add(btn_registrar_entrenamiento, btn_ver_entrenamientos)
     bot.send_message(message.chat.id, "¿Qué te gustaría hacer?", reply_markup=markup)
+
+#Comando /gemini
+@bot.message_handler(func=lambda message: message.text and message.text.lower() == 'gemini')
+def send_gemini_options(message):
+    help_text = "Esta es la respuesta de gemini:\n"
+    help_text += consultar_agente()
+    bot.reply_to(message, help_text)    
 
 # Comando /foto
 @bot.message_handler(func=lambda message: message.text and message.text.lower() == 'foto')
