@@ -1,0 +1,38 @@
+¿como generar una llave autofirmada?
+sudo mkdir -p /etc/ssl/telegram
+sudo openssl req -newkey rsa:2048 -sha256 -nodes -keyout /etc/ssl/telegram/private.key -x509 -days 365 -out /etc/ssl/telegram/public.pem -subj "/C=ES/ST=State/L=City/O=Bot/CN={IP_O_DOMINIO}"
+
+¿como configurar nginx?
+vi /etc/nginx/sites-available/defaul
+
+¿como iniciar nginx?
+sudo nginx -t && sudo systemctl restart nginx
+
+¿como crear un servicio?
+/etc/systemd/system/telegrambot.service
+==========================================
+[Unit]
+description=Telegram Webhook Bot
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/root/telegram_bot
+ExecStart=/root/telegram_bot/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:5000 bot:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+==========================================
+
+sudo systemctl daemon-reload
+sudo systemctl start telegrambot
+sudo systemctl enable telegrambot
+sudo systemctl stop telegrambot
+sudo systemctl restart telegrambot
+
+¿como registrar el web hook?
+curl -F "url=https://{IP_O_DOMINIO}:{PUERTO}/{CHATBOT_TOKEN}" -F "certificate=@/etc/ssl/telegram/public.pem" https://api.telegram.org/bot{CHATBOT_TOKEN}/setWebhook
+
+¿como saber el estado del web hook en telegram?
+curl -s https://api.telegram.org/bot{CHATBOT_TOKEN}/getWebhookInfo | json_pp
