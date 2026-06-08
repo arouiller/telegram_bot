@@ -29,6 +29,14 @@ def obtener_capital(pais: str) -> str:
     capitales = {"Francia": "París", "Japón": "Tokio", "Argentina": "Buenos Aires"}
     return capitales.get(pais, "Capital desconocida")
 
+def obtener_pais(capital: str) -> str:
+    """Consulta el país de una capital específica."""
+    capitales = {"Francia": "París", "Japón": "Tokio", "Argentina": "Buenos Aires"}
+    for pais, cap in capitales.items():
+        if cap == capital:
+            return pais
+    return "País desconocido"
+
 # 2. Crea el agente con su perfil, modelo y herramientas
 def consultar_agente():
     client = genai.Client(api_key=GEMINI_API_KEY)  # Usa la API unificada de Gemini
@@ -40,7 +48,7 @@ def consultar_agente():
             contents="Hola, ¿cuál es la capital de Francia y qué país tiene a Buenos Aires como capital?",
             config=types.GenerateContentConfig(
                 system_instruction=INSTRUCCIONES_AGENTE,
-                tools=[obtener_capital], # Mapea tu función de Python directamente
+                tools=[obtener_capital, obtener_pais], # Mapea tu función de Python directamente
                 temperature=0.3,
             )
         )
