@@ -4,7 +4,7 @@ import requests
 from telebot import types
 from google.adk import Agent
 from google.adk.runners import Runner
-from google.adk import Task
+from google.adk.tasks import Task
 import os
 
 
