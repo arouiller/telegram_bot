@@ -41,7 +41,7 @@ def consultar_agente():
 
     runner = Runner()
 
-    resultado = run(
+    resultado = runner.run(
         agent=mi_agente,
         prompt="Hola, ¿cuál es la capital de Francia y qué país tiene a Buenos Aires como capital?"
     )
