@@ -2,7 +2,7 @@ from flask import Flask, request
 import telebot
 import requests
 from telebot import types
-from google_adk import Agent, tool, run
+from google.adk import Agent, tool, run
 
 app = Flask(__name__)
 
