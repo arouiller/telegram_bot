@@ -31,7 +31,7 @@ def obtener_capital(pais: str) -> str:
 
 # 2. Crea el agente con su perfil, modelo y herramientas
 def consultar_agente():
-    client = genai.Client()  # Usa la API unificada de Gemini
+    client = genai.Client(api_key=GEMINI_API_KEY)  # Usa la API unificada de Gemini
     INSTRUCCIONES_AGENTE = "Eres un asistente experto en geografía llamado asistente_geografico. Usa tus herramientas si te preguntan capitales."
     try:
         # Ejecutamos la llamada directa usando la API oficial unificada
