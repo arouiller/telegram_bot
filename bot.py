@@ -29,7 +29,7 @@ def obtener_capital(pais: str) -> str:
 # 2. Crea el agente con su perfil, modelo y herramientas
 def consultar_agente():
     mi_agente = Agent(
-        name="Asistente Geográfico",
+        name="Asistente_Geográfico",
         model="gemini-2.0-flash",
         #model="gemini-1.5-pro", # Puedes especificar otros modelos
         tools=[obtener_capital],
