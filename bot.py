@@ -2,7 +2,8 @@ from flask import Flask, request
 import telebot
 import requests
 from telebot import types
-from google.adk import Agent,  run
+from google.adk import Agent
+from google.adk.runners import Runner
 import os
 
 
@@ -37,6 +38,8 @@ def consultar_agente():
     )
 
     # 3. Ejecuta el agente con un objetivo
+
+    runner = Runner()
 
     resultado = run(
         agent=mi_agente,
