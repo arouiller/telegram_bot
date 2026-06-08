@@ -2,7 +2,9 @@ from flask import Flask, request
 import telebot
 import requests
 from telebot import types
-from google.adk import Agent, tool, run
+from google.adk.llms import GeminiLLM
+from google.adk.agents import LLMAgent
+from google.adk.tasks import Task
 
 app = Flask(__name__)
 
@@ -26,17 +28,22 @@ def obtener_capital(pais: str) -> str:
 
 # 2. Crea el agente con su perfil, modelo y herramientas
 def consultar_agente():
-    mi_agente = Agent(
+    mi_agente = LLMAgent(
         name="Asistente Geográfico",
-        model="gemini-1.5-pro", # Puedes especificar otros modelos
+        llm = GeminiLLM(model_name="gemini-2.0-flash") ,
+        #model="gemini-1.5-pro", # Puedes especificar otros modelos
         api_key=GEMINI_API_KEY,
         tools=[obtener_capital],
         instructions="Eres un asistente experto en geografía. Usa tus herramientas cuando sea necesario."
     )
 
     # 3. Ejecuta el agente con un objetivo
-    respuesta = run(mi_agente, "Hola, ¿cuál es la capital de Francia y qué país tiene a Buenos Aires como capital?")
-    return respuesta
+    task = Task(
+        prompt="Hola, ¿cuál es la capital de Francia y qué país tiene a Buenos Aires como capital?",
+        agent=mi_agente
+    )
+    resultado = task.run()
+    return resultado.output
 
 
 # Latitud y longitud de Cerrito, Argentina
