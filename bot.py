@@ -4,7 +4,8 @@ import requests
 from telebot import types
 from google.adk import Agent
 from google.adk.runners import Runner
-from google.adk.tasks import Task
+from google import genai
+from google.genai import types
 import os
 
 
@@ -30,19 +31,23 @@ def obtener_capital(pais: str) -> str:
 
 # 2. Crea el agente con su perfil, modelo y herramientas
 def consultar_agente():
-    mi_agente = Agent(
-        name="Asistente_Geográfico",
-        model="gemini-2.0-flash",
-        #model="gemini-1.5-pro", # Puedes especificar otros modelos
-        tools=[obtener_capital],
-        instruction="Eres un asistente experto en geografía. Usa tus herramientas cuando sea necesario."
-    )
-
-    # 3. Ejecuta el agente con un objetivo
-    tarea = Task(agent=mi_agente, prompt="Hola, ¿cuál es la capital de Francia y qué país tiene a Buenos Aires como capital?")
-    
-    resultado = tarea.run()
-    return str(resultado.output)
+    client = genai.Client()  # Usa la API unificada de Gemini
+    INSTRUCCIONES_AGENTE = "Eres un asistente experto en geografía llamado asistente_geografico. Usa tus herramientas si te preguntan capitales."
+    try:
+        # Ejecutamos la llamada directa usando la API oficial unificada
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents="Hola, ¿cuál es la capital de Francia y qué país tiene a Buenos Aires como capital?",
+            config=types.GenerateContentConfig(
+                system_instruction=INSTRUCCIONES_AGENTE,
+                tools=[obtener_capital], # Mapea tu función de Python directamente
+                temperature=0.3,
+            )
+        )
+        # Retornamos el texto limpio generado por el modelo
+        return response.text
+    except Exception as e:
+        return f"Error al procesar la solicitud con Gemini: {str(e)}"
 
 
 # Latitud y longitud de Cerrito, Argentina
