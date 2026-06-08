@@ -4,6 +4,7 @@ import requests
 from telebot import types
 from google.adk import Agent
 from google.adk.runners import Runner
+from google.adk import runtime
 import os
 
 
@@ -39,9 +40,7 @@ def consultar_agente():
 
     # 3. Ejecuta el agente con un objetivo
 
-    runner = Runner()
-
-    resultado = runner.run(
+    resultado = runtime.run(
         agent=mi_agente,
         prompt="Hola, ¿cuál es la capital de Francia y qué país tiene a Buenos Aires como capital?"
     )
