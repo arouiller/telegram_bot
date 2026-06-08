@@ -20,8 +20,7 @@ API_KEY = '9a46e7f26dc8dac780cd81008a3eb3fa'
 WEATHER_URL = 'https://api.openweathermap.org/data/2.5/weather?'
 
 #Gemini
-GEMINI_API_KEY = 'AIzaSyBi63cXqmyHhCi32eMvi-1TfDmHirIdr_Q'
-os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
+GEMINI_API_KEY = 'AQ.Ab8RN6JEULXnVGqwjMj-uyzWuTrnanSLe7njsxtxRYAn5aX7Ng'
 
 # 1. Define una herramienta personalizada
 def obtener_capital(pais: str) -> str:
