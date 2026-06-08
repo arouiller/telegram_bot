@@ -21,7 +21,6 @@ GEMINI_API_KEY = 'AIzaSyC9n8sXo2m1Zt3v5j8k9l0m1n2o3p4q5r6s7t8u9v0w1x2y3z4a5b6c7d
 os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
 
 # 1. Define una herramienta personalizada
-@tool
 def obtener_capital(pais: str) -> str:
     """Consulta la capital de un país específico."""
     capitales = {"Francia": "París", "Japón": "Tokio", "Argentina": "Buenos Aires"}
