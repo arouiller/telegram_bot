@@ -7,7 +7,7 @@ from google.adk.runners import Runner
 from google import genai
 from google.genai import types
 import os
-
+import threading
 
 app = Flask(__name__)
 
@@ -97,6 +97,33 @@ def get_weather(latitude, longitude):
         return data["message"]
     else:
         return "No se pudo obtener el clima."   
+    
+def procesar_audio(message):
+
+    file_info = bot.get_file(message.voice.file_id)
+
+    file_url = (
+        f"https://api.telegram.org/file/bot{TOKEN}/"
+        f"{file_info.file_path}"
+    )
+
+    response = requests.get(file_url)
+
+    os.makedirs("audios", exist_ok=True)
+
+    audio_path = f"audios/{message.voice.file_id}.ogg"
+
+    with open(audio_path, "wb") as audio_file:
+        audio_file.write(response.content)
+
+    texto = transcribir_audio(audio_path)
+
+    bot.send_message(
+        message.chat.id,
+        texto
+    )
+
+    os.remove(audio_path)
 
 # Initialize the bot with the token
 bot = telebot.TeleBot(TOKEN, threaded=False )
@@ -105,43 +132,15 @@ bot = telebot.TeleBot(TOKEN, threaded=False )
 @bot.message_handler(content_types=['voice'])
 def handle_voice(message):
 
-    try:
+    bot.reply_to(
+        message,
+        "🎙️ Audio recibido. Transcribiendo..."
+    )
 
-        bot.reply_to(
-            message,
-            "🎙️ Audio recibido. Transcribiendo..."
-        )
-
-        file_info = bot.get_file(message.voice.file_id)
-
-        file_url = (
-            f"https://api.telegram.org/file/bot{TOKEN}/"
-            f"{file_info.file_path}"
-        )
-
-        response = requests.get(file_url)
-
-        os.makedirs("audios", exist_ok=True)
-
-        audio_path = f"audios/{message.voice.file_id}.ogg"
-
-        with open(audio_path, "wb") as audio_file:
-            audio_file.write(response.content)
-
-        texto = transcribir_audio(audio_path)
-
-        bot.send_message(
-            message.chat.id,
-            f"📝 Transcripción:\n\n{texto}"
-        )
-
-        os.remove(audio_path)
-
-    except Exception as e:
-        bot.send_message(
-            message.chat.id,
-            f"❌ Error: {str(e)}"
-        )
+    threading.Thread(
+        target=procesar_audio,
+        args=(message,)
+    ).start()
 
 # Comando /clima
 @bot.message_handler(func=lambda message: message.text and message.text.lower() == 'clima')
