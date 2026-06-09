@@ -20,11 +20,10 @@ API_KEY = '9a46e7f26dc8dac780cd81008a3eb3fa'
 WEATHER_URL = 'https://api.openweathermap.org/data/2.5/weather?'
 
 #Gemini
-GEMINI_API_KEY = 'AQ.Ab8RN6JEULXnVGqwjMj-uyzWuTrnanSLe7njsxtxRYAn5aX7Ng'
+GEMINI_API_KEY = 'AQ.Ab8RN6KYIYMjUsytHh-Umm4hXjsDwWL9lfzhDC4tMoQpKrwKqQ'
 
 def transcribir_audio(audio_path):
     client = genai.Client(api_key=GEMINI_API_KEY)
-
     try:
         archivo = client.files.upload(
             file=audio_path
