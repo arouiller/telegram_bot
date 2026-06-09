@@ -22,6 +22,27 @@ WEATHER_URL = 'https://api.openweathermap.org/data/2.5/weather?'
 #Gemini
 GEMINI_API_KEY = 'AQ.Ab8RN6JEULXnVGqwjMj-uyzWuTrnanSLe7njsxtxRYAn5aX7Ng'
 
+def transcribir_audio(audio_path):
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    try:
+        archivo = client.files.upload(
+            file=audio_path
+        )
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                "Transcribe este audio en español. Devuelve únicamente la transcripción.",
+                archivo
+            ]
+        )
+
+        return response.text
+
+    except Exception as e:
+        return f"Error al transcribir: {str(e)}"
+
 # 1. Define una herramienta personalizada
 def obtener_capital(pais: str) -> str:
     """Consulta la capital de un país específico."""
@@ -108,8 +129,7 @@ def handle_voice(message):
         with open(audio_path, "wb") as audio_file:
             audio_file.write(response.content)
 
-        #texto = transcribir_audio(audio_path)
-        texto = "Transcripción simulada del audio"  # Aquí deberías llamar
+        texto = transcribir_audio(audio_path)
 
         bot.send_message(
             message.chat.id,

@@ -31,8 +31,12 @@ sudo systemctl enable telegrambot
 sudo systemctl stop telegrambot
 sudo systemctl restart telegrambot
 
+ver errores en un servicio
+journalctl -u telegrambot.service -n 20 --no-pager
+
 ¿como registrar el web hook?
 curl -F "url=https://{IP_O_DOMINIO}:{PUERTO}/{CHATBOT_TOKEN}" -F "certificate=@/etc/ssl/telegram/public.pem" https://api.telegram.org/bot{CHATBOT_TOKEN}/setWebhook
 
 ¿como saber el estado del web hook en telegram?
 curl -s https://api.telegram.org/bot{CHATBOT_TOKEN}/getWebhookInfo | json_pp
+curl -s https://api.telegram.org/bot8852894730:AAGQxmUErRvv72Tmkx_KqSW0XRjSn3yg934/getWebhookInfo | json_pp
