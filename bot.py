@@ -82,6 +82,47 @@ def get_weather(latitude, longitude):
 bot = telebot.TeleBot(TOKEN, threaded=False )
 
 # Creacion de comandos simples
+@bot.message_handler(content_types=['voice'])
+def handle_voice(message):
+
+    try:
+
+        bot.reply_to(
+            message,
+            "🎙️ Audio recibido. Transcribiendo..."
+        )
+
+        file_info = bot.get_file(message.voice.file_id)
+
+        file_url = (
+            f"https://api.telegram.org/file/bot{TOKEN}/"
+            f"{file_info.file_path}"
+        )
+
+        response = requests.get(file_url)
+
+        os.makedirs("audios", exist_ok=True)
+
+        audio_path = f"audios/{message.voice.file_id}.ogg"
+
+        with open(audio_path, "wb") as audio_file:
+            audio_file.write(response.content)
+
+        #texto = transcribir_audio(audio_path)
+        texto = "Transcripción simulada del audio"  # Aquí deberías llamar
+
+        bot.send_message(
+            message.chat.id,
+            f"📝 Transcripción:\n\n{texto}"
+        )
+
+        os.remove(audio_path)
+
+    except Exception as e:
+        bot.send_message(
+            message.chat.id,
+            f"❌ Error: {str(e)}"
+        )
 
 # Comando /clima
 @bot.message_handler(func=lambda message: message.text and message.text.lower() == 'clima')
