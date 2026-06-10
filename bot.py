@@ -1,7 +1,7 @@
 from flask import Flask, request
 import telebot
 import requests
-from telebot import types
+from telebot import types as telebot_types
 from google.adk import Agent
 from google.adk.runners import Runner
 from google import genai
@@ -164,9 +164,9 @@ def send_help(message):
 # Comando /entrenamiento
 @bot.message_handler(func=lambda message: message.text and message.text.lower() == 'entrenamiento')
 def send_training_options(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    btn_registrar_entrenamiento = types.InlineKeyboardButton("Registrar entrenamiento", callback_data="registrar_entrenamiento")
-    btn_ver_entrenamientos = types.InlineKeyboardButton("Ver entrenamientos", callback_data="ver_entrenamientos")
+    markup = telebot_types.InlineKeyboardMarkup(row_width=2)
+    btn_registrar_entrenamiento = telebot_types.InlineKeyboardButton("Registrar entrenamiento", callback_data="registrar_entrenamiento")
+    btn_ver_entrenamientos = telebot_types.InlineKeyboardButton("Ver entrenamientos", callback_data="ver_entrenamientos")
 
     markup.add(btn_registrar_entrenamiento, btn_ver_entrenamientos)
     bot.send_message(message.chat.id, "¿Qué te gustaría hacer?", reply_markup=markup)
