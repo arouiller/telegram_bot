@@ -14,6 +14,10 @@ import time
 def procesar_audio(message):
     logger.info("THREAD INICIADO")
     logger.info(f"Procesando mensaje de voz de {message.chat.id}")
+    bot.send_chat_action(
+        message.chat.id,
+        "typing"
+    )
     try:
         file_info = bot.get_file(
             message.voice.file_id

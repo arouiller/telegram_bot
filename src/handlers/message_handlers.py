@@ -25,19 +25,6 @@ from src.logger import logger
 @bot.message_handler(content_types=['voice'])
 def handle_voice(message):
 
-    inicio = time.time()
-
-    logger.info("ANTES REPLY")
-
-    bot.reply_to(
-        message,
-        "🎙️ Audio recibido. Transcribiendo..."
-    )
-
-    logger.info(
-        f"REPLY COMPLETADO ({time.time()-inicio:.3f}s)"
-    )
-
     thread = threading.Thread(
         target=procesar_audio,
         args=(message,),
@@ -71,4 +58,18 @@ def send_capital(message):
         consultar_capitales(
             "ARGENTINA"
         )
+    )
+
+@bot.message_handler(commands=['ping'])
+def ping(message):
+
+    inicio = time.time()
+
+    bot.send_message(
+        message.chat.id,
+        "pong"
+    )
+
+    logger.info(
+        f"send_message demoró {time.time()-inicio:.3f}s"
     )
