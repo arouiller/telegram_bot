@@ -10,7 +10,7 @@ from src.config import (
 )
 
 from src.services.audio_service import (
-    procesar_audio
+    procesar_audio, procesar_audio_inline
 )
 
 from src.services.weather_service import (
@@ -31,7 +31,8 @@ def handle_voice(message):
     )
 
     threading.Thread(
-        target=procesar_audio,
+        #target=procesar_audio,
+        target=procesar_audio_inline,
         args=(message,),
         daemon=True
     ).start()
