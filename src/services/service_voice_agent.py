@@ -18,114 +18,69 @@ from src.services.geography_service import (
     obtener_pais
 )
 
+from src.services.conversation_state_service import (
+    obtener_estado,
+    ESTADO_IDLE,
+    ESTADO_ESPERANDO_CONFIRMACION_GASTO
+)
+
 client = genai.Client(
     api_key=GEMINI_API_KEY
 )
 
 
-def procesar_audio_con_tools(
-    audio_bytes: bytes,
-    user_id: int
-) -> str:
+def transcribir_audio(audio_bytes):
 
-    transcripcion = client.models.generate_content(
+    response = client.models.generate_content(
         model="gemini-2.5-flash-lite",
         contents=[
             """
             Transcribe exactamente el audio.
             Devuelve únicamente la transcripción.
-            No expliques ni interpretes.
+            No expliques.
+            No interpretes.
             """,
             types.Part.from_bytes(
                 data=audio_bytes,
                 mime_type="audio/ogg"
             )
         ]
-    ).text.strip()
-
-    pendiente = obtener_gasto_pendiente(
-        user_id
     )
 
-    if pendiente:
+    return response.text.strip()
 
-        texto = transcripcion.lower()
 
-        if texto in [
-            "confirmar gasto",
-            "ok, confirmar gasto",
-            "sí, confirmar gasto",
-            "registrar gasto"
-        ]:
-
-            return confirmar_gasto(
-                user_id
-            )
-
-        if texto in [
-            "no, cancelar gasto",
-            "cancelar gasto",
-            "no, cancelar",
-            "cancelar"
-        ]:
-
-            return cancelar_gasto(
-                user_id
-            )
-
-        categorias = [
-            "viveres",
-            "transporte",
-            "servicios",
-            "entretenimiento",
-            "tecnologia",
-            "salud",
-            "educacion",
-            "otros"
-        ]
-
-        for categoria in categorias:
-
-            if categoria in texto:
-
-                actualizar_categoria(
-                    user_id,
-                    categoria.title()
-                )
-
-                return (
-                    f"Categoría actualizada a "
-                    f"{categoria.title()}.\n\n"
-                    f"¿Deseas registrar "
-                    f"el gasto?"
-                )
+def procesar_estado_idle(
+    texto: str,
+    user_id: int
+):
 
     prompt = f"""
 Usuario dijo:
 
-{transcripcion}
+{texto}
 
-Si el mensaje es una consulta
-de geografía responde directamente.
+Si quiere registrar un gasto:
 
-Si el usuario quiere registrar
-un gasto:
-
-Extrae:
-
-- descripción
-- monto
-
-Devuelve únicamente:
+Devuelve:
 
 GASTO|descripcion|monto
 
-Ejemplos:
+Ejemplo:
 
 GASTO|Carrefour|15000
 
-Si no es un gasto,
-responde normalmente.
+Si pregunta una capital:
+
+CAPITAL|pais
+
+Si pregunta el país de una capital:
+
+PAIS|capital
+
+Si no aplica:
+
+NORMAL|respuesta
 """
 
     response = client.models.generate_content(
@@ -133,11 +88,11 @@ responde normalmente.
         contents=prompt
     )
 
-    texto = response.text.strip()
+    resultado = response.text.strip()
 
-    if texto.startswith("GASTO|"):
+    if resultado.startswith("GASTO|"):
 
-        partes = texto.split("|")
+        partes = resultado.split("|")
 
         descripcion = partes[1]
         monto = float(partes[2])
@@ -152,36 +107,142 @@ responde normalmente.
             f"Detecté un gasto.\n\n"
             f"Descripción: {descripcion}\n"
             f"Monto: ${monto:.2f}\n"
-            f"Categoría sugerida: "
-            f"{categoria}\n\n"
+            f"Categoría sugerida: {categoria}\n\n"
             f"¿Deseas registrarlo?"
         )
 
-    if "capital de" in transcripcion.lower():
+    if resultado.startswith("CAPITAL|"):
 
-        pais = (
-            transcripcion
-            .lower()
-            .replace(
-                "capital de",
-                ""
-            )
-            .strip()
-            .title()
-        )
+        pais = resultado.split("|")[1]
 
         return obtener_capital(
             pais
         )
 
-    if "qué país" in transcripcion.lower():
+    if resultado.startswith("PAIS|"):
 
-        palabras = transcripcion.split()
-
-        capital = palabras[-1]
+        capital = resultado.split("|")[1]
 
         return obtener_pais(
             capital
         )
 
-    return texto
+    if resultado.startswith("NORMAL|"):
+
+        return resultado.replace(
+            "NORMAL|",
+            ""
+        )
+
+    return resultado
+
+
+def procesar_confirmacion_gasto(
+    texto: str,
+    user_id: int
+):
+
+    prompt = f"""
+Usuario respondió:
+
+{texto}
+
+Clasifica únicamente como:
+
+CONFIRMAR
+CANCELAR
+CAMBIAR_CATEGORIA
+OTRO
+
+Devuelve una sola palabra.
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash-lite",
+        contents=prompt
+    )
+
+    accion = response.text.strip().upper()
+
+    if accion == "CONFIRMAR":
+        return confirmar_gasto(
+            user_id
+        )
+
+    if accion == "CANCELAR":
+        return cancelar_gasto(
+            user_id
+        )
+
+    categorias = [
+        "Viveres",
+        "Transporte",
+        "Servicios",
+        "Entretenimiento",
+        "Tecnologia",
+        "Salud",
+        "Educacion",
+        "Otros"
+    ]
+
+    texto_lower = texto.lower()
+
+    for categoria in categorias:
+
+        if categoria.lower() in texto_lower:
+
+            actualizar_categoria(
+                user_id,
+                categoria
+            )
+
+            return (
+                f"Categoría actualizada a "
+                f"{categoria}.\n\n"
+                f"¿Deseas registrarlo?"
+            )
+
+    return (
+        "No entendí la respuesta.\n\n"
+        "Puedes decir:\n"
+        "- confirmar\n"
+        "- cancelar\n"
+        "- una categoría"
+    )
+
+
+def procesar_audio_con_tools(
+    audio_bytes: bytes,
+    user_id: int
+):
+
+    texto = transcribir_audio(
+        audio_bytes
+    )
+
+    estado = obtener_estado(
+        user_id
+    )
+
+    estado_actual = estado["estado"]
+
+    if estado_actual == ESTADO_IDLE:
+
+        return procesar_estado_idle(
+            texto,
+            user_id
+        )
+
+    if (
+        estado_actual
+        == ESTADO_ESPERANDO_CONFIRMACION_GASTO
+    ):
+
+        return procesar_confirmacion_gasto(
+            texto,
+            user_id
+        )
+
+    return (
+        "Estado desconocido."
+    )
