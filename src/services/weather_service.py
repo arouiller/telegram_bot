@@ -8,7 +8,7 @@ WEATHER_URL = (
 )
 
 
-def obtener_clima(lat, lon):
+def get_weather(lat, lon):
 
 
 
