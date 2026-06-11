@@ -77,10 +77,11 @@ GASTO|Carrefour|15000
 
 Para consultas de geografía utiliza las herramientas obtener_capital y obtener_pais, respondiendo de la siguiente manera:
 La capital de Francia es Paris.
+Si no conoces la respuesta, responde "No tengo ni idea"
 
-Para consultas sobre clima utiliza la herramienta get_clima_local
+Si el usuario solicita el clima, utiliza la herramienta get_clima_local
 
-Para cualquier otra consulta responde que no conoces la respuesta.
+Para cualquier otra consulta responde "No puedo responder esa pregunta."
 """
 
     response = client.models.generate_content(
