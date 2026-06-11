@@ -1,3 +1,5 @@
+# src/services/voice_agent_service.py
+
 from google import genai
 from google.genai import types
 
@@ -17,7 +19,9 @@ from src.services.geography_service import (
     obtener_pais
 )
 
-from src.services.weather_service import get_weather
+from src.services.weather_service import (
+    get_weather
+)
 
 from src.services.conversation_state_service import (
     obtener_estado,
@@ -25,111 +29,89 @@ from src.services.conversation_state_service import (
     ESTADO_ESPERANDO_CONFIRMACION_GASTO
 )
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = genai.Client(
+    api_key=GEMINI_API_KEY
+)
 
-
-# =====================================================
-# TOOLS PURAS (sin estado)
-# =====================================================
-
-def get_clima_local():
+def get_clima_local() -> str:
     return get_weather(
         latitud=LATITUDE,
         longitud=LONGITUDE
     )
 
+def transcribir_audio(audio_bytes):
 
-def transcribir_audio(audio_bytes: bytes) -> str:
     response = client.models.generate_content(
         model="gemini-2.5-flash-lite",
         contents=[
-            "Transcribe exactamente el audio sin interpretar.",
+            """
+            Transcribe exactamente el audio.
+            Devuelve únicamente la transcripción.
+            No expliques.
+            No interpretes.
+            """,
             types.Part.from_bytes(
                 data=audio_bytes,
                 mime_type="audio/ogg"
             )
         ]
     )
+
     return response.text.strip()
 
 
-# =====================================================
-# TOOL EXECUTOR (solo tools reales)
-# =====================================================
 
-def ejecutar_tools(response):
+def procesar_estado_idle(
+    texto: str,
+    user_id: int
+):
+    
+    logger.info(f"Procesando estado IDLE con texto: {texto}")
 
-    candidate = response.candidates[0]
+    prompt = f"""
+Usuario dijo: {texto}
 
-    if not candidate.content.parts:
-        return response.text
+Analiza la intención.
 
-    for part in candidate.content.parts:
-
-        fc = getattr(part, "function_call", None)
-        if not fc:
-            continue
-
-        name = fc.name
-        args = dict(fc.args)
-
-        logger.info(f"Tool llamada: {name} args={args}")
-
-        if name == "get_clima_local":
-            result = get_clima_local()
-
-        elif name == "obtener_capital":
-            result = obtener_capital(**args)
-
-        elif name == "obtener_pais":
-            result = obtener_pais(**args)
-
-        else:
-            result = "Tool no soportada"
-
-        followup = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[
-                part,
-                types.Part.from_text(str(result))
-            ]
-        )
-
-        return followup.text
-
-    return response.text
-
-
-# =====================================================
-# INTENCIÓN DE GASTOS (NO TOOL)
-# =====================================================
-
-def procesar_gasto(texto: str, user_id: int):
-
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=f"""
-Extrae información del siguiente mensaje:
-
-{texto}
-
-Si es un gasto devuelve EXACTAMENTE:
+Si desea registrar un gasto, devuelve exactamente:
 GASTO|descripcion|monto
 
 Ejemplo:
-GASTO|cafe|5000
+GASTO|Carrefour|15000
 
-Si no es un gasto responde:
-NORMAL|...
+Si desea conocer la capital de un pais la herramienta obtener_capital respondiendo de la siguiente manera:
+La capital de Francia es Paris.
+Si no conoces la respuesta, responde "No tengo ni idea"
+
+Si solicita el estado del clima utiliza la herramienta get_clima_local
+
+Para cualquier otra consulta responde "No puedo responder esa pregunta."
 """
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            tools=[
+                obtener_capital,
+                obtener_pais,
+                get_clima_local
+            ]
+        )
     )
 
     resultado = response.text.strip()
 
+    # --------------------------------------------------
+    # GASTOS
+    # --------------------------------------------------
+
     if resultado.startswith("GASTO|"):
 
-        _, descripcion, monto = resultado.split("|")
-        monto = float(monto)
+        partes = resultado.split("|")
+
+        descripcion = partes[1]
+        monto = float(partes[2])
 
         categoria = crear_gasto_pendiente(
             user_id,
@@ -144,86 +126,98 @@ NORMAL|...
             f"Categoría sugerida: {categoria}\n\n"
             f"¿Deseas registrarlo?"
         )
+    
+    return resultado
 
-    return resultado.replace("NORMAL|", "")
 
+def procesar_confirmacion_gasto(
+    texto: str,
+    user_id: int
+):
 
-# =====================================================
-# CONFIRMACIÓN DE GASTOS
-# =====================================================
+    prompt = f"""
+Usuario respondió: {texto}
 
-def procesar_confirmacion(texto: str, user_id: int):
+Clasifica únicamente como:
 
-    texto = texto.lower().strip()
+CONFIRMAR
+CANCELAR
+CAMBIAR_CATEGORIA
+OTRO
 
-    pendiente = obtener_gasto_pendiente(user_id)
+Devuelve una sola palabra.
+"""
 
-    if not pendiente:
-        return "No hay gastos pendientes."
+    response = client.models.generate_content(
+        model="gemini-2.5-flash-lite",
+        contents=prompt
+    )
 
-    if texto in ["si", "sí", "confirmar", "ok"]:
-        return confirmar_gasto(user_id)
+    accion = response.text.strip().upper()
 
-    if texto in ["no", "cancelar"]:
-        return cancelar_gasto(user_id)
+    if accion == "CONFIRMAR":
+        return confirmar_gasto(
+            user_id
+        )
+
+    if accion == "CANCELAR":
+        return cancelar_gasto(
+            user_id
+        )
 
     categorias = [
-        "viveres",
-        "transporte",
-        "servicios",
-        "entretenimiento",
-        "tecnologia",
-        "salud",
-        "educacion",
-        "otros"
+        "Viveres",
+        "Transporte",
+        "Servicios",
+        "Entretenimiento",
+        "Tecnologia",
+        "Salud",
+        "Educacion",
+        "Otros"
     ]
 
-    for cat in categorias:
-        if cat in texto:
-            actualizar_categoria(user_id, cat.title())
-            return f"Categoría actualizada a {cat.title()}.\n¿Confirmas el gasto?"
+    texto_lower = texto.lower()
 
-    return "Responde: confirmar, cancelar o una categoría."
+    for categoria in categorias:
+
+        if categoria.lower() in texto_lower:
+
+            actualizar_categoria(
+                user_id,
+                categoria
+            )
+
+            return (
+                f"Categoría actualizada a "
+                f"{categoria}.\n\n"
+                f"¿Deseas registrarlo?"
+            )
+
+    return (
+        "No entendí la respuesta.\n\n"
+        "Puedes decir:\n"
+        "- confirmar\n"
+        "- cancelar\n"
+        "- una categoría"
+    )
 
 
-# =====================================================
-# ORQUESTADOR PRINCIPAL
-# =====================================================
+def procesar_audio_con_tools(
+    audio_bytes: bytes,
+    user_id: int
+):
+    
+    estado = obtener_estado(user_id)
+    estado_actual = estado["estado"]
 
-def procesar_audio_con_tools(audio_bytes: bytes, user_id: int):
-
-    estado = obtener_estado(user_id)["estado"]
+    logger.info(f"El estado actual={estado_actual}")
 
     texto = transcribir_audio(audio_bytes)
 
-    logger.info(f"Estado={estado} Texto={texto}")
+    if estado_actual == ESTADO_IDLE:
+        return procesar_estado_idle(texto, user_id)
 
-    # -----------------------------------------
-    # IDLE
-    # -----------------------------------------
-    if estado == ESTADO_IDLE:
+    if estado_actual == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
+        return procesar_confirmacion_gasto(texto, user_id)
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=texto,
-            config=types.GenerateContentConfig(
-                tools=[
-                    obtener_capital,
-                    obtener_pais,
-                    get_clima_local
-                ]
-            )
-        )
-
-        tool_result = ejecutar_tools(response)
-
-        # Si no fue tool → gastos
-        return procesar_gasto(tool_result, user_id)
-
-    # -----------------------------------------
-    # CONFIRMACIÓN
-    # -----------------------------------------
-    if estado == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
-        return procesar_confirmacion(texto, user_id)
-
-    return "Estado desconocido"
+    return ("Estado desconocido, no se que responder.")
