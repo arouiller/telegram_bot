@@ -16,24 +16,18 @@ def procesar_audio(message):
 
     try:
         logger.info("B")
-        file_id = voice.file_id
+        file_id = message.voice.file_id
         logger.info("C")
 
         logger.info("Inicio get_file")
+        t0 = time.time()
+        
         file_info = bot.get_file(file_id)
 
         file_url = (
             f"https://api.telegram.org/file/bot"
             f"{TELEGRAM_TOKEN}/"
             f"{file_info.file_path}"
-        )
-
-        logger.info("Inicio get_file")
-
-        t0 = time.time()
-
-        file_info = bot.get_file(
-            message.voice.file_id
         )
 
         logger.info(
