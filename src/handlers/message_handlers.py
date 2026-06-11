@@ -22,23 +22,27 @@ from src.services.gemini_service import (
 
 from src.logger import logger
 
-@bot.message_handler(
-    content_types=['voice']
-)
+@bot.message_handler(content_types=['voice'])
 def handle_voice(message):
-    logger.info(
-        f"HANDLE VOICE {message.voice.file_id}"
-    )    
+
+    logger.info("HANDLE VOICE")
+
     bot.reply_to(
         message,
         "🎙️ Audio recibido. Transcribiendo..."
     )
 
-    threading.Thread(
+    logger.info("ANTES THREAD")
+
+    thread = threading.Thread(
         target=procesar_audio,
         args=(message,),
         daemon=True
-    ).start()
+    )
+
+    thread.start()
+
+    logger.info("DESPUES THREAD")
 
 @bot.message_handler(
     func=lambda m:
