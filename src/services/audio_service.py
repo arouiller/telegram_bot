@@ -4,6 +4,7 @@ import requests
 
 from src.config import TELEGRAM_TOKEN
 from src.services.gemini_service import transcribir_audio
+from src.services.gemini_service import transcribir_audio_bytes
 from src.logger import logger
 
 
