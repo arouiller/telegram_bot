@@ -1,3 +1,4 @@
+from email.mime import message
 import threading
 import time
 from telebot import types as telebot_types
@@ -24,7 +25,7 @@ from src.logger import logger
 
 @bot.message_handler(content_types=['voice'])
 def handle_voice(message):
-
+    logger.info(f"Handler iniciado  para chat ID: {message.chat.id}")
     thread = threading.Thread(
         target=procesar_audio,
         args=(message,),

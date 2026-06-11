@@ -12,6 +12,7 @@ import requests
 import time
 
 def procesar_audio(message):    
+    
     logger.info("A. THREAD INICIADO")
 
     try:
@@ -21,7 +22,7 @@ def procesar_audio(message):
 
         logger.info("Inicio get_file")
         t0 = time.time()
-        
+
         file_info = bot.get_file(file_id)
 
         file_url = (
