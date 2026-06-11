@@ -27,7 +27,7 @@ def transcribir_audio_bytes(audio_bytes):
     )
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-2.5-flash-lite",
         contents=[
             "Transcribe este audio en español. Devuelve únicamente la transcripción.",
             types.Part.from_bytes(
