@@ -31,12 +31,17 @@ def procesar_audio_con_tools(
     transcripcion = client.models.generate_content(
         model="gemini-2.5-flash-lite",
         contents=[
+            """
+            Transcribe exactamente el audio.
+            Devuelve únicamente la transcripción.
+            No expliques ni interpretes.
+            """,
             types.Part.from_bytes(
                 data=audio_bytes,
                 mime_type="audio/ogg"
             )
         ]
-    ).text
+    ).text.strip()
 
     pendiente = obtener_gasto_pendiente(
         user_id
