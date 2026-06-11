@@ -1,0 +1,2 @@
+handle_registrar_entrenamiento()
+handle_ver_entrenamientos()

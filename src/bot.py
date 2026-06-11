@@ -1,0 +1,7 @@
+import telebot
+from src.config import TELEGRAM_TOKEN
+
+bot = telebot.TeleBot(
+    TELEGRAM_TOKEN,
+    threaded=True
+)
