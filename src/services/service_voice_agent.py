@@ -81,7 +81,7 @@ Si desea conocer la capital de un pais la herramienta obtener_capital respondien
 La capital de Francia es Paris.
 Si no conoces la respuesta, responde "No tengo ni idea"
 
-Si desea conocer el clima, utiliza la herramienta get_clima_local
+Si solicita el estado del clima utiliza la herramienta get_clima_local
 
 Para cualquier otra consulta responde "No puedo responder esa pregunta."
 """
