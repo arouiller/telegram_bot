@@ -1,82 +1,148 @@
-import os
+import tempfile
+import time
 import requests
 
-from src.bot import bot
 from src.config import TELEGRAM_TOKEN
 from src.services.gemini_service import transcribir_audio
 from src.logger import logger
 
-import tempfile
-import requests
 
-import time
+session = requests.Session()
 
-def procesar_audio(message):    
-    
-    logger.info("A. THREAD INICIADO")
+
+def procesar_audio(message):
+
+    chat_id = message.chat.id
+    file_id = message.voice.file_id
+
+    logger.info(
+        f"Procesando audio. chat_id={chat_id} file_id={file_id}"
+    )
 
     try:
-        logger.info("B")
-        file_id = message.voice.file_id
-        logger.info("C")
 
-        logger.info("Inicio get_file")
-        t0 = time.time()
+        # ==========================================
+        # GET FILE
+        # ==========================================
 
-        file_info = bot.get_file(file_id)
+        inicio = time.time()
+
+        response = session.get(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile",
+            params={
+                "file_id": file_id
+            },
+            timeout=(5, 5)
+        )
+
+        logger.info(
+            f"getFile demoró {time.time() - inicio:.3f}s"
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if not data["ok"]:
+            raise Exception(
+                f"Error getFile: {data}"
+            )
+
+        file_path = data["result"]["file_path"]
+
+        # ==========================================
+        # DESCARGA AUDIO
+        # ==========================================
 
         file_url = (
             f"https://api.telegram.org/file/bot"
             f"{TELEGRAM_TOKEN}/"
-            f"{file_info.file_path}"
+            f"{file_path}"
         )
-
-        logger.info(
-            f"Fin get_file ({time.time()-t0:.3f}s)"
-        )
-
-        logger.info(f"Inicio descarga del audio en la url {file_url}")
 
         inicio = time.time()
 
-        response = requests.get(
+        response = session.get(
             file_url,
             timeout=(5, 5)
         )
 
         logger.info(
-            f"GET Telegram demoró {time.time()-inicio:.3f}s"
+            f"Descarga audio demoró "
+            f"{time.time() - inicio:.3f}s"
         )
 
         response.raise_for_status()
+
         logger.info(
             f"Tamaño audio: {len(response.content)} bytes"
         )
-        logger.info(
-            f"Status descarga: {response.status_code}"
-        )
+
+        # ==========================================
+        # TRANSCRIPCION
+        # ==========================================
 
         with tempfile.NamedTemporaryFile(
             suffix=".ogg"
         ) as temp_audio:
+
             temp_audio.write(
                 response.content
             )
+
             temp_audio.flush()
-            logger.info(f"Iniciando transcripción del audio para {message.chat.id}")
+
+            inicio = time.time()
+
             texto = transcribir_audio(
                 temp_audio.name
             )
-            logger.info(f"Transcripción completada para {message.chat.id}: {texto}")
 
-        bot.send_message(
-            message.chat.id,
-            texto
+            logger.info(
+                f"Gemini demoró "
+                f"{time.time() - inicio:.3f}s"
+            )
+
+        logger.info(
+            f"Texto obtenido: {texto}"
         )
+
+        # ==========================================
+        # SEND MESSAGE
+        # ==========================================
+
+        inicio = time.time()
+
+        response = session.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            data={
+                "chat_id": chat_id,
+                "text": texto
+            },
+            timeout=(5, 5)
+        )
+
+        logger.info(
+            f"sendMessage demoró "
+            f"{time.time() - inicio:.3f}s"
+        )
+
+        response.raise_for_status()
 
     except Exception as ex:
 
-        bot.send_message(
-            message.chat.id,
-            f"Error: {str(ex)}"
+        logger.exception(
+            "Error procesando audio"
         )
+
+        try:
+            session.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                data={
+                    "chat_id": chat_id,
+                    "text": f"Error: {str(ex)}"
+                },
+                timeout=(5, 5)
+            )
+        except Exception:
+            pass

@@ -25,16 +25,20 @@ from src.logger import logger
 
 @bot.message_handler(content_types=['voice'])
 def handle_voice(message):
-    logger.info(f"Handler iniciado  para chat ID: {message.chat.id}")
-    thread = threading.Thread(
+
+    logger.info(
+        f"Handler iniciado chat_id={message.chat.id}"
+    )
+
+    threading.Thread(
         target=procesar_audio,
         args=(message,),
         daemon=True
+    ).start()
+
+    logger.info(
+        "Thread lanzado"
     )
-
-    thread.start()
-
-    logger.info("DESPUES THREAD")
 
 @bot.message_handler(
     func=lambda m:
