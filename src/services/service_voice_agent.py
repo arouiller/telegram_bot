@@ -34,6 +34,10 @@ def obtener_pais(capital: str) -> str:
 
     return "País desconocido"
 
+def registrar_gasto(description: str, amount: float) -> str:
+    # Aquí podrías agregar lógica para registrar el gasto en una base de datos o archivo
+    return f"Gasto registrado: {description} por ${amount:.2f}"
+
 
 def procesar_audio_con_tools(audio_bytes):
 
@@ -53,12 +57,14 @@ def procesar_audio_con_tools(audio_bytes):
             Si el usuario pregunta por la capital de un país, usa la herramienta obtener_capital.
             Si el usuario pregunta por el país de una capital, usa la herramienta obtener_pais.
             Si el usuario hace una pregunta que no puede ser respondida con las herramientas, responde "Desconozco la respuesta".
+            Si el usuario quiere registrar un gasto, obten la descripcion y el monto, y usa la herramienta registrar_gasto; si falta uno de ambos, responde "Debes incluir tanto la descripción como el monto".
 
             Responde siempre en español.
             """,
             tools=[
                 obtener_capital,
-                obtener_pais
+                obtener_pais,
+                registrar_gasto
             ]
         )
     )
