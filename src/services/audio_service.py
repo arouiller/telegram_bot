@@ -4,12 +4,13 @@ import requests
 from src.bot import bot
 from src.config import TELEGRAM_TOKEN
 from src.services.gemini_service import transcribir_audio
+from src.logger import logger
 
 import tempfile
 import requests
 
 def procesar_audio(message):
-
+    logger.info(f"Procesando mensaje de voz de {message.chat.id}")
     try:
         file_info = bot.get_file(
             message.voice.file_id
@@ -25,6 +26,7 @@ def procesar_audio(message):
             file_url,
             timeout=30
         )
+        logger.info(f"Archivo de audio descargado desde Telegram: {file_url}")
         response.raise_for_status()
 
         with tempfile.NamedTemporaryFile(
@@ -34,9 +36,11 @@ def procesar_audio(message):
                 response.content
             )
             temp_audio.flush()
+            logger.info(f"Iniciando transcripción del audio para {message.chat.id}")
             texto = transcribir_audio(
                 temp_audio.name
             )
+            logger.info(f"Transcripción completada para {message.chat.id}: {texto}")
 
         bot.send_message(
             message.chat.id,
