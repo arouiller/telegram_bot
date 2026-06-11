@@ -4,6 +4,7 @@ from google import genai
 from google.genai import types
 
 from src.config import GEMINI_API_KEY
+from src.logger import logger
 
 from src.services.expense_service import (
     crear_gasto_pendiente,
@@ -49,46 +50,43 @@ def transcribir_audio(audio_bytes):
 
     return response.text.strip()
 
-
 def procesar_estado_idle(
     texto: str,
     user_id: int
 ):
 
     prompt = f"""
-Usuario dijo:
+Usuario dijo: {texto}
 
-{texto}
+Analiza la intención.
 
-Si quiere registrar un gasto:
-
-Devuelve:
-
+Si desea registrar un gasto, devuelve exactamente:
 GASTO|descripcion|monto
 
 Ejemplo:
-
 GASTO|Carrefour|15000
 
-Si pregunta una capital:
+Para consultas de geografía utiliza las herramientas disponibles.
 
-CAPITAL|pais
-
-Si pregunta el país de una capital:
-
-PAIS|capital
-
-Si no aplica:
-
-NORMAL|respuesta
+Para cualquier otra consulta responde que no conoces la respuesta.
 """
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=prompt
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            tools=[
+                obtener_capital,
+                obtener_pais
+            ]
+        )
     )
 
     resultado = response.text.strip()
+
+    # --------------------------------------------------
+    # GASTOS
+    # --------------------------------------------------
 
     if resultado.startswith("GASTO|"):
 
@@ -110,30 +108,7 @@ NORMAL|respuesta
             f"Categoría sugerida: {categoria}\n\n"
             f"¿Deseas registrarlo?"
         )
-
-    if resultado.startswith("CAPITAL|"):
-
-        pais = resultado.split("|")[1]
-
-        return obtener_capital(
-            pais
-        )
-
-    if resultado.startswith("PAIS|"):
-
-        capital = resultado.split("|")[1]
-
-        return obtener_pais(
-            capital
-        )
-
-    if resultado.startswith("NORMAL|"):
-
-        return resultado.replace(
-            "NORMAL|",
-            ""
-        )
-
+    
     return resultado
 
 
@@ -143,9 +118,7 @@ def procesar_confirmacion_gasto(
 ):
 
     prompt = f"""
-Usuario respondió:
-
-{texto}
+Usuario respondió: {texto}
 
 Clasifica únicamente como:
 
@@ -215,34 +188,18 @@ def procesar_audio_con_tools(
     audio_bytes: bytes,
     user_id: int
 ):
-
-    texto = transcribir_audio(
-        audio_bytes
-    )
-
-    estado = obtener_estado(
-        user_id
-    )
-
+    
+    estado = obtener_estado(user_id)
     estado_actual = estado["estado"]
 
+    logger.info(f"El estado actual={estado_actual}")
+
+    texto = transcribir_audio(audio_bytes)
+
     if estado_actual == ESTADO_IDLE:
+        return procesar_estado_idle(texto, user_id)
 
-        return procesar_estado_idle(
-            texto,
-            user_id
-        )
+    if estado_actual == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
+        return procesar_confirmacion_gasto(texto, user_id)
 
-    if (
-        estado_actual
-        == ESTADO_ESPERANDO_CONFIRMACION_GASTO
-    ):
-
-        return procesar_confirmacion_gasto(
-            texto,
-            user_id
-        )
-
-    return (
-        "Estado desconocido."
-    )
+    return ("Estado desconocido, no se que responder.")
