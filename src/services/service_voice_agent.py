@@ -83,7 +83,7 @@ Si desea conocer la capital de un pais la herramienta obtener_capital respondien
 La capital de Francia es Paris.
 Si no conoces la respuesta, responde "No tengo ni idea"
 
-Si solicita el estado del clima utiliza la herramienta get_clima_local
+Si solicita el estado del clima utiliza la herramienta get_weather
 
 Para cualquier otra consulta responde "No puedo responder esa pregunta."
 """
@@ -95,7 +95,7 @@ Para cualquier otra consulta responde "No puedo responder esa pregunta."
             tools=[
                 obtener_capital,
                 obtener_pais,
-                get_clima_local
+                get_weather
             ]
         )
     )

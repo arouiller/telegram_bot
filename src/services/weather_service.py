@@ -8,7 +8,7 @@ WEATHER_URL = (
 )
 
 
-def get_weather(lat, lon):
+def get_weather():
 
 
 
