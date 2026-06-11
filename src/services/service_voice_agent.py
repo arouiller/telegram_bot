@@ -72,7 +72,7 @@ GASTO|Carrefour|15000
 
 Para consultas de geografía utiliza las herramientas obtener_capital y obtener_pais.
 
-Para consultas sobre clima utiliza la herramienta get_weather.
+Para consultas sobre clima utiliza la herramienta get_weather, si la latitud y longitud no están especificadas, asume que es para la ciudad de Cerrito, Entre Rios.
 
 Para cualquier otra consulta responde que no conoces la respuesta.
 """
