@@ -6,6 +6,9 @@ from src.config import TELEGRAM_TOKEN
 from src.services.gemini_service import transcribir_audio
 from src.services.gemini_service import transcribir_audio_bytes
 from src.logger import logger
+from src.services.gemini_service import (
+    procesar_audio_con_tools
+)
 
 
 session = requests.Session()
@@ -226,7 +229,7 @@ def procesar_audio_inline(message):
 
         inicio = time.time()
 
-        texto = transcribir_audio_bytes(
+        texto = procesar_audio_con_tools(
             audio_bytes
         )
 
