@@ -48,10 +48,11 @@ def procesar_audio_con_tools(audio_bytes):
         config=types.GenerateContentConfig(
             system_instruction="""
             Eres un asistente de Telegram.
-
             Escucha el audio.
-
             Usa herramientas cuando sea necesario.
+            Si el usuario pregunta por la capital de un país, usa la herramienta obtener_capital.
+            Si el usuario pregunta por el país de una capital, usa la herramienta obtener_pais.
+            Si el usuario hace una pregunta que no puede ser respondida con las herramientas, responde "Desconozco la respuesta".
 
             Responde siempre en español.
             """,
