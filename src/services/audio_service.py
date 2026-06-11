@@ -1,15 +1,15 @@
-import os
 import requests
 
 from src.bot import bot
 from src.config import TELEGRAM_TOKEN
 from src.services.gemini_service import transcribir_audio
 
+import tempfile
+import requests
 
 def procesar_audio(message):
 
     try:
-
         file_info = bot.get_file(
             message.voice.file_id
         )
@@ -24,20 +24,18 @@ def procesar_audio(message):
             file_url,
             timeout=30
         )
+        response.raise_for_status()
 
-        os.makedirs(
-            "audios",
-            exist_ok=True
-        )
-
-        audio_path = (
-            f"audios/{message.voice.file_id}.ogg"
-        )
-
-        with open(audio_path, "wb") as audio_file:
-            audio_file.write(response.content)
-
-        texto = transcribir_audio(audio_path)
+        with tempfile.NamedTemporaryFile(
+            suffix=".ogg"
+        ) as temp_audio:
+            temp_audio.write(
+                response.content
+            )
+            temp_audio.flush()
+            texto = transcribir_audio(
+                temp_audio.name
+            )
 
         bot.send_message(
             message.chat.id,
@@ -50,11 +48,3 @@ def procesar_audio(message):
             message.chat.id,
             f"Error: {str(ex)}"
         )
-
-    finally:
-
-        if (
-            "audio_path" in locals()
-            and os.path.exists(audio_path)
-        ):
-            os.remove(audio_path)
