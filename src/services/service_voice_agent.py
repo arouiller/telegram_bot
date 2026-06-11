@@ -29,7 +29,7 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 # =====================================================
-# TOOLS REALES
+# TOOLS PURAS (sin estado)
 # =====================================================
 
 def get_clima_local():
@@ -39,28 +39,22 @@ def get_clima_local():
     )
 
 
-# =====================================================
-# TRANSCRIPCIÓN
-# =====================================================
-
 def transcribir_audio(audio_bytes: bytes) -> str:
-
     response = client.models.generate_content(
         model="gemini-2.5-flash-lite",
         contents=[
-            "Transcribe exactamente el audio. No expliques nada.",
+            "Transcribe exactamente el audio sin interpretar.",
             types.Part.from_bytes(
                 data=audio_bytes,
                 mime_type="audio/ogg"
             )
         ]
     )
-
     return response.text.strip()
 
 
 # =====================================================
-# TOOL EXECUTOR (CLAVE DEL SISTEMA)
+# TOOL EXECUTOR (solo tools reales)
 # =====================================================
 
 def ejecutar_tools(response):
@@ -72,51 +66,27 @@ def ejecutar_tools(response):
 
     for part in candidate.content.parts:
 
-        if not getattr(part, "function_call", None):
+        fc = getattr(part, "function_call", None)
+        if not fc:
             continue
 
-        fc = part.function_call
         name = fc.name
         args = dict(fc.args)
 
         logger.info(f"Tool llamada: {name} args={args}")
 
-        # -----------------------------
-        # WEATHER
-        # -----------------------------
         if name == "get_clima_local":
             result = get_clima_local()
 
-        # -----------------------------
-        # GEOGRAPHY
-        # -----------------------------
         elif name == "obtener_capital":
             result = obtener_capital(**args)
 
         elif name == "obtener_pais":
             result = obtener_pais(**args)
 
-        # -----------------------------
-        # EXPENSES
-        # -----------------------------
-        elif name == "crear_gasto_pendiente":
-            result = crear_gasto_pendiente(**args)
-
-        elif name == "confirmar_gasto":
-            result = confirmar_gasto(**args)
-
-        elif name == "cancelar_gasto":
-            result = cancelar_gasto(**args)
-
-        elif name == "actualizar_categoria":
-            result = actualizar_categoria(**args)
-
         else:
             result = "Tool no soportada"
 
-        # -----------------------------
-        # Segunda pasada (respuesta final)
-        # -----------------------------
         followup = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[
@@ -131,22 +101,107 @@ def ejecutar_tools(response):
 
 
 # =====================================================
-# AGENTE PRINCIPAL
+# INTENCIÓN DE GASTOS (NO TOOL)
+# =====================================================
+
+def procesar_gasto(texto: str, user_id: int):
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=f"""
+Extrae información del siguiente mensaje:
+
+{texto}
+
+Si es un gasto devuelve EXACTAMENTE:
+GASTO|descripcion|monto
+
+Ejemplo:
+GASTO|cafe|5000
+
+Si no es un gasto responde:
+NORMAL|...
+"""
+    )
+
+    resultado = response.text.strip()
+
+    if resultado.startswith("GASTO|"):
+
+        _, descripcion, monto = resultado.split("|")
+        monto = float(monto)
+
+        categoria = crear_gasto_pendiente(
+            user_id,
+            descripcion,
+            monto
+        )
+
+        return (
+            f"Detecté un gasto.\n\n"
+            f"Descripción: {descripcion}\n"
+            f"Monto: ${monto:.2f}\n"
+            f"Categoría sugerida: {categoria}\n\n"
+            f"¿Deseas registrarlo?"
+        )
+
+    return resultado.replace("NORMAL|", "")
+
+
+# =====================================================
+# CONFIRMACIÓN DE GASTOS
+# =====================================================
+
+def procesar_confirmacion(texto: str, user_id: int):
+
+    texto = texto.lower().strip()
+
+    pendiente = obtener_gasto_pendiente(user_id)
+
+    if not pendiente:
+        return "No hay gastos pendientes."
+
+    if texto in ["si", "sí", "confirmar", "ok"]:
+        return confirmar_gasto(user_id)
+
+    if texto in ["no", "cancelar"]:
+        return cancelar_gasto(user_id)
+
+    categorias = [
+        "viveres",
+        "transporte",
+        "servicios",
+        "entretenimiento",
+        "tecnologia",
+        "salud",
+        "educacion",
+        "otros"
+    ]
+
+    for cat in categorias:
+        if cat in texto:
+            actualizar_categoria(user_id, cat.title())
+            return f"Categoría actualizada a {cat.title()}.\n¿Confirmas el gasto?"
+
+    return "Responde: confirmar, cancelar o una categoría."
+
+
+# =====================================================
+# ORQUESTADOR PRINCIPAL
 # =====================================================
 
 def procesar_audio_con_tools(audio_bytes: bytes, user_id: int):
 
-    estado = obtener_estado(user_id)
-    estado_actual = estado["estado"]
-
-    logger.info(f"Estado actual: {estado_actual}")
+    estado = obtener_estado(user_id)["estado"]
 
     texto = transcribir_audio(audio_bytes)
 
-    # =====================================================
-    # ESTADO IDLE
-    # =====================================================
-    if estado_actual == ESTADO_IDLE:
+    logger.info(f"Estado={estado} Texto={texto}")
+
+    # -----------------------------------------
+    # IDLE
+    # -----------------------------------------
+    if estado == ESTADO_IDLE:
 
         response = client.models.generate_content(
             model="gemini-2.5-flash",
@@ -155,31 +210,20 @@ def procesar_audio_con_tools(audio_bytes: bytes, user_id: int):
                 tools=[
                     obtener_capital,
                     obtener_pais,
-                    get_clima_local,
-                    crear_gasto_pendiente
+                    get_clima_local
                 ]
             )
         )
 
-        return ejecutar_tools(response)
+        tool_result = ejecutar_tools(response)
 
-    # =====================================================
-    # ESTADO CONFIRMACIÓN GASTO
-    # =====================================================
-    if estado_actual == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
+        # Si no fue tool → gastos
+        return procesar_gasto(tool_result, user_id)
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=texto,
-            config=types.GenerateContentConfig(
-                tools=[
-                    confirmar_gasto,
-                    cancelar_gasto,
-                    actualizar_categoria
-                ]
-            )
-        )
-
-        return ejecutar_tools(response)
+    # -----------------------------------------
+    # CONFIRMACIÓN
+    # -----------------------------------------
+    if estado == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
+        return procesar_confirmacion(texto, user_id)
 
     return "Estado desconocido"
