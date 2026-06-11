@@ -6,9 +6,6 @@ import telebot
 from src.bot import bot
 from src.config import TELEGRAM_TOKEN
 
-import src.handlers.message_handlers
-import src.handlers.callback_handlers
-
 app = Flask(__name__)
 
 @app.route(
