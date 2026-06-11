@@ -63,6 +63,8 @@ def procesar_estado_idle(
     texto: str,
     user_id: int
 ):
+    
+    logger.info(f"Procesando estado IDLE con texto: {texto}")
 
     prompt = f"""
 Usuario dijo: {texto}
@@ -75,11 +77,11 @@ GASTO|descripcion|monto
 Ejemplo:
 GASTO|Carrefour|15000
 
-Para consultas de geografía utiliza las herramientas obtener_capital y obtener_pais, respondiendo de la siguiente manera:
+Si desea conocer la capital de un pais la herramienta obtener_capital respondiendo de la siguiente manera:
 La capital de Francia es Paris.
 Si no conoces la respuesta, responde "No tengo ni idea"
 
-Si el usuario solicita el clima, utiliza la herramienta get_clima_local
+Si desea conocer el clima, utiliza la herramienta get_clima_local
 
 Para cualquier otra consulta responde "No puedo responder esa pregunta."
 """
