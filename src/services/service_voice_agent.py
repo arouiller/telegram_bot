@@ -3,7 +3,7 @@
 from google import genai
 from google.genai import types
 
-from src.config import GEMINI_API_KEY
+from src.config import GEMINI_API_KEY, LATITUDE, LONGITUDE
 from src.logger import logger
 
 from src.services.expense_service import (
@@ -33,6 +33,11 @@ client = genai.Client(
     api_key=GEMINI_API_KEY
 )
 
+def get_clima_local():
+    return get_weather(
+        latitud=LATITUDE,
+        longitud=LONGITUDE
+    )
 
 def transcribir_audio(audio_bytes):
 
@@ -72,7 +77,7 @@ GASTO|Carrefour|15000
 
 Para consultas de geografía utiliza las herramientas obtener_capital y obtener_pais.
 
-Para consultas sobre clima utiliza la herramienta get_weather, si la latitud y longitud no están especificadas, asume que es para la ciudad de Cerrito, Entre Rios.
+Para consultas sobre clima utiliza la herramienta get_clima_local
 
 Para cualquier otra consulta responde que no conoces la respuesta.
 """
@@ -84,7 +89,7 @@ Para cualquier otra consulta responde que no conoces la respuesta.
             tools=[
                 obtener_capital,
                 obtener_pais,
-                get_weather
+                get_clima_local
             ]
         )
     )
