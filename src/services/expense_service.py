@@ -1,8 +1,10 @@
 # src/services/expense_service.py
-
+import os
 from google import genai
+from telebot import logger
 
 from src.config import GEMINI_API_KEY
+from src.logger import logger
 
 client = genai.Client(
     api_key=GEMINI_API_KEY
@@ -99,6 +101,9 @@ def crear_gasto_pendiente(
     descripcion: str,
     monto: float
 ):
+    logger.info(
+        f"GUARDANDO PENDIENTE user={user_id}"
+    )
 
     categoria = clasificar_gasto(
         descripcion
@@ -116,6 +121,11 @@ def crear_gasto_pendiente(
 def obtener_gasto_pendiente(
     user_id: int
 ):
+
+    logger.info(
+        f"PID={os.getpid()} "
+        f"gastos={gastos_pendientes}"
+    )
 
     return gastos_pendientes.get(
         user_id
