@@ -35,7 +35,7 @@ def obtener_pais(capital: str) -> str:
     return "País desconocido"
 
 
-def procesar_audio_con_agente(audio_bytes):
+def procesar_audio_con_tools(audio_bytes):
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
