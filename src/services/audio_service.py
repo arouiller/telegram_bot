@@ -36,19 +36,26 @@ def procesar_audio(message):
             f"Fin get_file ({time.time()-t0:.3f}s)"
         )
 
-        logger.info("Inicio descarga")
+        logger.info(f"Inicio descarga del audio en la url {file_url}")
 
-        t1 = time.time()
+        inicio = time.time()
 
         response = requests.get(
             file_url,
-            timeout=30
+            timeout=(5, 5)
         )
 
         logger.info(
-            f"Fin descarga ({time.time()-t1:.3f}s)"
+            f"GET Telegram demoró {time.time()-inicio:.3f}s"
         )
+
         response.raise_for_status()
+        logger.info(
+            f"Tamaño audio: {len(response.content)} bytes"
+        )
+        logger.info(
+            f"Status descarga: {response.status_code}"
+        )
 
         with tempfile.NamedTemporaryFile(
             suffix=".ogg"
