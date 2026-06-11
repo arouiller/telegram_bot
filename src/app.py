@@ -5,6 +5,7 @@ import telebot
 
 from src.bot import bot
 from src.config import TELEGRAM_TOKEN
+from src.logger import logger
 
 import src.handlers.message_handlers
 import src.handlers.callback_handlers
@@ -16,6 +17,7 @@ app = Flask(__name__)
     methods=["POST"]
 )
 def webhook():
+    logger.info("WEBHOOK RECIBIDO")
     json_string = (
         request.get_data()
         .decode("utf-8")

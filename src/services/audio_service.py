@@ -9,6 +9,8 @@ from src.logger import logger
 import tempfile
 import requests
 
+import time
+
 def procesar_audio(message):
     logger.info(f"Procesando mensaje de voz de {message.chat.id}")
     try:
@@ -22,11 +24,30 @@ def procesar_audio(message):
             f"{file_info.file_path}"
         )
 
+        logger.info("Inicio get_file")
+
+        t0 = time.time()
+
+        file_info = bot.get_file(
+            message.voice.file_id
+        )
+
+        logger.info(
+            f"Fin get_file ({time.time()-t0:.3f}s)"
+        )
+
+        logger.info("Inicio descarga")
+
+        t1 = time.time()
+
         response = requests.get(
             file_url,
             timeout=30
         )
-        logger.info(f"Archivo de audio descargado desde Telegram: {file_url}")
+
+        logger.info(
+            f"Fin descarga ({time.time()-t1:.3f}s)"
+        )
         response.raise_for_status()
 
         with tempfile.NamedTemporaryFile(

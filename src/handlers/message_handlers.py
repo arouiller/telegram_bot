@@ -20,10 +20,15 @@ from src.services.gemini_service import (
     consultar_capitales
 )
 
+from src.logger import logger
+
 @bot.message_handler(
     content_types=['voice']
 )
 def handle_voice(message):
+    logger.info(
+        f"HANDLE VOICE {message.voice.file_id}"
+    )    
     bot.reply_to(
         message,
         "🎙️ Audio recibido. Transcribiendo..."
