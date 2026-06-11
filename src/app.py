@@ -1,7 +1,7 @@
 from flask import Flask
 from flask import request
 
-import telebot
+import telebot 
 
 from src.bot import bot
 from src.config import TELEGRAM_TOKEN
