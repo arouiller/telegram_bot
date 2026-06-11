@@ -1,5 +1,5 @@
 import threading
-
+import time
 from telebot import types as telebot_types
 
 from src.bot import bot
@@ -25,14 +25,18 @@ from src.logger import logger
 @bot.message_handler(content_types=['voice'])
 def handle_voice(message):
 
-    logger.info("HANDLE VOICE")
+    inicio = time.time()
+
+    logger.info("ANTES REPLY")
 
     bot.reply_to(
         message,
         "🎙️ Audio recibido. Transcribiendo..."
     )
 
-    logger.info("ANTES THREAD")
+    logger.info(
+        f"REPLY COMPLETADO ({time.time()-inicio:.3f}s)"
+    )
 
     thread = threading.Thread(
         target=procesar_audio,
