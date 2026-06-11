@@ -26,7 +26,7 @@ from src.services.gemini_service import (
     content_types=['voice']
 )
 def handle_voice(message):
-    logger.info("Inicio procesamiento de audio")
+    print("Inicio procesamiento de audio")
     bot.reply_to(
         message,
         "🎙️ Audio recibido. Transcribiendo..."
