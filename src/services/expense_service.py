@@ -6,6 +6,12 @@ from telebot import logger
 from src.config import GEMINI_API_KEY
 from src.logger import logger
 
+from src.services.conversation_state_service import (
+    establecer_estado,
+    limpiar_estado,
+    ESTADO_ESPERANDO_CONFIRMACION_GASTO
+)
+
 client = genai.Client(
     api_key=GEMINI_API_KEY
 )
@@ -101,9 +107,6 @@ def crear_gasto_pendiente(
     descripcion: str,
     monto: float
 ):
-    logger.info(
-        f"GUARDANDO PENDIENTE user={user_id}"
-    )
 
     categoria = clasificar_gasto(
         descripcion
@@ -114,6 +117,11 @@ def crear_gasto_pendiente(
         "monto": monto,
         "categoria": categoria
     }
+
+    establecer_estado(
+        user_id,
+        ESTADO_ESPERANDO_CONFIRMACION_GASTO
+    )
 
     return categoria
 
@@ -141,28 +149,17 @@ def confirmar_gasto(
     )
 
     if not gasto:
-        return (
-            "No hay gastos pendientes."
-        )
-
-    # FUTURO:
-    #
-    # guardar_en_bd(
-    #     gasto["descripcion"],
-    #     gasto["monto"],
-    #     gasto["categoria"]
-    # )
+        return "No hay gastos pendientes."
 
     del gastos_pendientes[user_id]
 
+    limpiar_estado(user_id)
+
     return (
         f"Gasto registrado.\n\n"
-        f"Descripción: "
-        f"{gasto['descripcion']}\n"
-        f"Monto: "
-        f"${gasto['monto']:.2f}\n"
-        f"Categoría: "
-        f"{gasto['categoria']}"
+        f"Descripción: {gasto['descripcion']}\n"
+        f"Monto: ${gasto['monto']:.2f}\n"
+        f"Categoría: {gasto['categoria']}"
     )
 
 
@@ -171,12 +168,11 @@ def cancelar_gasto(
 ) -> str:
 
     if user_id in gastos_pendientes:
-
         del gastos_pendientes[user_id]
 
-        return "Registro cancelado."
+    limpiar_estado(user_id)
 
-    return "No hay gastos pendientes."
+    return "Registro cancelado."
 
 
 def actualizar_categoria(
