@@ -28,6 +28,7 @@ def handle_voice(message):
         message,
         "🎙️ Audio recibido. Transcribiendo..."
     )
+
     threading.Thread(
         target=procesar_audio,
         args=(message,),
