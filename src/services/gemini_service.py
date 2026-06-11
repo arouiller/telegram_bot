@@ -20,7 +20,24 @@ def obtener_pais(capital: str) -> str:
             return pais
     return "País desconocido"
 
+def transcribir_audio_bytes(audio_bytes):
 
+    client = genai.Client(
+        api_key=GEMINI_API_KEY
+    )
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[
+            "Transcribe este audio en español. Devuelve únicamente la transcripción.",
+            types.Part.from_bytes(
+                data=audio_bytes,
+                mime_type="audio/ogg"
+            )
+        ]
+    )
+
+    return response.text
 
 def transcribir_audio(audio_path):
     archivo = client.files.upload(
