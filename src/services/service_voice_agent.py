@@ -47,10 +47,10 @@ def procesar_audio_con_tools(
         texto = transcripcion.lower()
 
         if texto in [
-            "si",
-            "sí",
-            "confirmar",
-            "ok"
+            "confirmar gasto",
+            "ok, confirmar gasto",
+            "sí, confirmar gasto",
+            "registrar gasto"
         ]:
 
             return confirmar_gasto(
@@ -58,7 +58,9 @@ def procesar_audio_con_tools(
             )
 
         if texto in [
-            "no",
+            "no, cancelar gasto",
+            "cancelar gasto",
+            "no, cancelar",
             "cancelar"
         ]:
 
