@@ -11,27 +11,22 @@ import src.handlers.callback_handlers
 
 app = Flask(__name__)
 
-
 @app.route(
     f"/{TELEGRAM_TOKEN}",
     methods=["POST"]
 )
 def webhook():
-
     json_string = (
         request.get_data()
         .decode("utf-8")
     )
-
     update = (
         telebot.types.Update
         .de_json(json_string)
     )
-
     bot.process_new_updates(
         [update]
     )
-
     return "ok", 200
 
 

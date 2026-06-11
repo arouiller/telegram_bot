@@ -15,11 +15,15 @@ from src.services.audio_service import (
 from src.services.weather_service import (
     get_weather
 )
+
+from src.services.gemini_service import (
+    consultar_capitales
+)
+
 @bot.message_handler(
     content_types=['voice']
 )
 def handle_voice(message):
-
     bot.reply_to(
         message,
         "🎙️ Audio recibido. Transcribiendo..."
@@ -36,11 +40,22 @@ def handle_voice(message):
     m.text and m.text.lower() == "clima"
 )
 def send_weather(message):
-
     bot.reply_to(
         message,
         get_weather(
             LATITUDE,
             LONGITUDE
+        )
+    )
+
+@bot.message_handler(
+    func=lambda m:
+    m.text and m.text.lower() == "gemini"
+)
+def send_capital(message):
+    bot.reply_to(
+        message,
+        consultar_capitales(
+            "ARGENTINA"
         )
     )
