@@ -1,6 +1,7 @@
 import requests
 
-from src.config import OPENWEATHER_API_KEY
+from src.config import OPENWEATHER_API_KEY, LATITUDE, LONGITUDE
+
 
 WEATHER_URL = (
     "https://api.openweathermap.org/data/2.5/weather"
@@ -9,11 +10,13 @@ WEATHER_URL = (
 
 def get_weather(lat, lon):
 
+
+
     response = requests.get(
         WEATHER_URL,
         params={
-            "lat": lat,
-            "lon": lon,
+            "lat": LATITUDE,
+            "lon": LONGITUDE,
             "appid": OPENWEATHER_API_KEY,
             "units": "metric",
             "lang": "es"
