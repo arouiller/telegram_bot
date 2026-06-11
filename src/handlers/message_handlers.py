@@ -1,5 +1,3 @@
-from src.logger import logger
-
 import threading
 
 from telebot import types as telebot_types
@@ -26,7 +24,6 @@ from src.services.gemini_service import (
     content_types=['voice']
 )
 def handle_voice(message):
-    print("Inicio procesamiento de audio")
     bot.reply_to(
         message,
         "🎙️ Audio recibido. Transcribiendo..."
