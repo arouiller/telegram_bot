@@ -11,17 +11,16 @@ import requests
 
 import time
 
-def procesar_audio(message):
-    logger.info("THREAD INICIADO")
-    logger.info(f"Procesando mensaje de voz de {message.chat.id}")
-    bot.send_chat_action(
-        message.chat.id,
-        "typing"
-    )
+def procesar_audio(message):    
+    logger.info("A. THREAD INICIADO")
+
     try:
-        file_info = bot.get_file(
-            message.voice.file_id
-        )
+        logger.info("B")
+        file_id = voice.file_id
+        logger.info("C")
+
+        logger.info("Inicio get_file")
+        file_info = bot.get_file(file_id)
 
         file_url = (
             f"https://api.telegram.org/file/bot"
