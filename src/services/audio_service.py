@@ -230,7 +230,7 @@ def procesar_audio_inline(message):
         inicio = time.time()
 
         texto = procesar_audio_con_tools(
-            audio_bytes
+            audio_bytes, message.chat.id
         )
 
         logger.info(
