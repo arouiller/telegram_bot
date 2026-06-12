@@ -4,6 +4,9 @@ from flask import request
 import telebot 
 
 from src.bot import bot
+import src.handlers.message_handlers
+import src.handlers.callback_handlers
+
 from src.config import TELEGRAM_TOKEN
 from src.logger import logger
 
