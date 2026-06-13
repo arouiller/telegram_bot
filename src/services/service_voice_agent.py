@@ -82,12 +82,6 @@ GASTO|descripcion|monto
 Ejemplo:
 GASTO|Carrefour|15000
 
-Si desea conocer la capital de un pais la herramienta obtener_capital respondiendo de la siguiente manera:
-La capital de Francia es Paris.
-Si no conoces la respuesta, responde "No tengo ni idea"
-
-Si solicita el estado del clima utiliza la herramienta get_weather
-
 Para cualquier otra consulta responde "No puedo responder esa pregunta."
 """
 
