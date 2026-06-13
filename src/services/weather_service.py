@@ -9,8 +9,12 @@ WEATHER_URL = (
 
 
 def get_weather():
+    """
+    Obtiene el clima actual 
 
-
+    Returns:
+        Un string con la información del clima.
+    """
 
     response = requests.get(
         WEATHER_URL,
