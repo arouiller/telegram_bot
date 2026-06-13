@@ -2,9 +2,12 @@
 
 from google import genai
 from google.genai import types
-
-from src.config import GEMINI_API_KEY, LATITUDE, LONGITUDE
+import time
+from src.config import GEMINI_API_KEY, LATITUDE, LONGITUDE, TELEGRAM_TOKEN
 from src.logger import logger
+import requests
+
+session = requests.Session()
 
 from src.services.expense_service import (
     crear_gasto_pendiente,
@@ -221,3 +224,96 @@ def procesar_audio_con_tools(
         return procesar_confirmacion_gasto(texto, user_id)
 
     return ("Estado desconocido, no se que responder.")
+
+def procesar_audio_inline(message):
+
+    chat_id = message.chat.id
+    file_id = message.voice.file_id
+
+    logger.info(f"[INLINE] Procesando audio. chat_id={chat_id} file_id={file_id}")
+
+    try:
+        # ==========================================
+        # GET FILE
+        # ==========================================
+        inicio = time.time()
+        response = session.get(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile",
+            params={
+                "file_id": file_id
+            },
+            timeout=(5, 5)
+        )
+
+        logger.info(f"[INLINE] getFile demoró {time.time() - inicio:.3f}s")
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if not data["ok"]:
+            raise Exception(f"Error getFile: {data}")
+
+        file_path = data["result"]["file_path"]
+
+        # ==========================================
+        # DESCARGA AUDIO
+        # ==========================================
+        file_url = (
+            f"https://api.telegram.org/file/bot"
+            f"{TELEGRAM_TOKEN}/"
+            f"{file_path}"
+        )
+
+        inicio = time.time()
+        response = session.get(file_url, timeout=(5, 5))
+
+        logger.info(f"[INLINE] Descarga audio demoró {time.time() - inicio:.3f}s")
+
+        response.raise_for_status()
+
+        audio_bytes = response.content
+
+        logger.info(f"[INLINE] Tamaño audio: {len(audio_bytes)} bytes")
+
+        # ==========================================
+        # TRANSCRIPCIÓN DIRECTA
+        # ==========================================
+        inicio = time.time()
+        texto = procesar_audio_con_tools(audio_bytes, message.chat.id)
+
+        logger.info(f"[INLINE] Gemini demoró {time.time() - inicio:.3f}s")
+        logger.info(f"[INLINE] Texto obtenido: {texto}")
+
+        # ==========================================
+        # SEND MESSAGE
+        # ==========================================
+
+        inicio = time.time()
+        response = session.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            data={
+                "chat_id": chat_id,
+                "text": texto
+            },
+            timeout=(5, 5)
+        )
+
+        logger.info(f"[INLINE] sendMessage demoró {time.time() - inicio:.3f}s")
+        response.raise_for_status()
+
+    except Exception as ex:
+
+        logger.exception("[INLINE] Error procesando audio")
+
+        try:
+            session.post(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+                data={
+                    "chat_id": chat_id,
+                    "text": f"Error: {str(ex)}"
+                },
+                timeout=(5, 5)
+            )
+        except Exception:
+            pass

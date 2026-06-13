@@ -9,8 +9,8 @@ from src.config import (
     LONGITUDE
 )
 
-from src.services.audio_service import (
-    procesar_audio, procesar_audio_inline
+from src.services.service_voice_agent import (
+    procesar_audio_inline
 )
 
 from src.services.weather_service import (
@@ -29,38 +29,12 @@ def handle_voice(message):
     logger.info(f"Handler iniciado chat_id={message.chat.id}")
 
     threading.Thread(
-        #target=procesar_audio,
         target=procesar_audio_inline,
         args=(message,),
         daemon=True
     ).start()
 
     logger.info(f"Thread lanzado")
-
-@bot.message_handler(
-    func=lambda m:
-    m.text and m.text.lower() == "clima"
-)
-def send_weather(message):
-    bot.reply_to(
-        message,
-        get_weather(
-            LATITUDE,
-            LONGITUDE
-        )
-    )
-
-@bot.message_handler(
-    func=lambda m:
-    m.text and m.text.lower() == "gemini"
-)
-def send_capital(message):
-    bot.reply_to(
-        message,
-        consultar_capitales(
-            "ARGENTINA"
-        )
-    )
 
 @bot.message_handler(commands=['ping'])
 def ping(message):
