@@ -29,8 +29,6 @@ def handle_voice(message):
     logger.info(f"🎙️ Handler voz iniciado chat_id={chat_id}")
 
     try:
-        bot.send_message(chat_id, "🎙️ Procesando audio...")
-
         threading.Thread(
             target=procesar_audio_inline,
             args=(message,),
