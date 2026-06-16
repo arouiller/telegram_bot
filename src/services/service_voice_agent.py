@@ -27,6 +27,50 @@ from src.services.conversation_state_service import (
 session = requests.Session()
 client = genai.Client(api_key=GEMINI_API_KEY)
 
+# Palabras clave para detección de intención
+PALABRAS_CLAVE_GASTO = [
+    "registrar", "gasto", "pagar", "gasté", "pagué",
+    "salida", "cuenta", "factura", "costo", "egreso"
+]
+
+PALABRAS_CLAVE_CLIMA = [
+    "clima", "temperatura", "lluvia", "tiempo",
+    "frío", "calor", "soleado", "nublado", "cielo",
+    "nubes", "viento", "humedad", "llueve", "lluvia"
+]
+
+PALABRAS_CLAVE_GEOGRAFIA = [
+    "capital", "país", "pais", "ciudad", "ubicación",
+    "donde", "dónde", "capital de", "geografía", "geografia"
+]
+
+
+def detectar_intension(texto: str) -> str:
+    """
+    Detecta la intención del usuario basado en palabras clave.
+
+    Args:
+        texto: Texto del usuario
+
+    Returns:
+        "GASTO" si es sobre registrar gastos
+        "CLIMA" si es sobre clima/temperatura
+        "GEOGRAFIA" si es sobre geografía
+        "OTRO" para cualquier otra consulta
+    """
+    texto_lower = texto.lower()
+
+    if any(palabra in texto_lower for palabra in PALABRAS_CLAVE_GASTO):
+        return "GASTO"
+
+    if any(palabra in texto_lower for palabra in PALABRAS_CLAVE_CLIMA):
+        return "CLIMA"
+
+    if any(palabra in texto_lower for palabra in PALABRAS_CLAVE_GEOGRAFIA):
+        return "GEOGRAFIA"
+
+    return "OTRO"
+
 
 def get_clima_local() -> str:
     """Obtiene clima local."""
@@ -63,45 +107,44 @@ def transcribir_audio(audio_bytes: bytes) -> str:
         raise
 
 
-def procesar_estado_idle(texto: str, user_id: int) -> str:
+def procesar_gasto_desde_audio(texto: str, user_id: int) -> str:
     """
-    Procesa texto en estado IDLE usando agente.
-    Detecta si el usuario quiere registrar un gasto.
+    Procesa un audio identificado como gasto.
 
     Args:
-        texto: Texto del usuario
+        texto: Texto del usuario con información de gasto
         user_id: ID del usuario
 
     Returns:
-        Respuesta del agente o confirmación de gasto
+        Confirmación de gasto creado o mensaje de error
     """
-    logger.info(f"🤖 Procesando estado IDLE con texto: {texto[:50]}... user_id={user_id}")
+    logger.info(f"💰 Procesando gasto desde audio: {texto[:50]}...")
 
     try:
         prompt = f"""
 Usuario dijo: {texto}
 
-Analiza la intención del usuario.
-
-Si desea registrar un gasto, devuelve exactamente:
+Extrae información de gasto. Si menciona un gasto, devuelve exactamente:
 GASTO|descripcion|monto
 
 Ejemplo:
 GASTO|Carrefour|15000
 
-Para cualquier otra consulta responde de forma natural.
+Si no hay información clara de gasto, devuelve:
+NO_GASTO
+
+Sé conciso en la descripción.
 """
 
         resultado = orchestrator.run_agent_sync("geography", prompt)
         resultado = resultado.strip()
 
-        # Detectar si es un gasto
         if resultado.startswith("GASTO|"):
             try:
                 partes = resultado.split("|")
                 if len(partes) >= 3:
-                    descripcion = partes[1]
-                    monto = float(partes[2])
+                    descripcion = partes[1].strip()
+                    monto = float(partes[2].strip())
 
                     categoria = crear_gasto_pendiente(
                         user_id,
@@ -109,7 +152,7 @@ Para cualquier otra consulta responde de forma natural.
                         monto
                     )
 
-                    logger.info(f"💰 Gasto detectado: {descripcion} ${monto:.2f}")
+                    logger.info(f"💰 Gasto creado: {descripcion} ${monto:.2f}")
 
                     return (
                         f"💰 Detecté un gasto.\n\n"
@@ -120,8 +163,69 @@ Para cualquier otra consulta responde de forma natural.
                     )
             except (ValueError, IndexError) as e:
                 logger.error(f"Error parseando gasto: {str(e)}")
+                return "No pude procesar la información del gasto. ¿Puedes repetir?"
 
-        return resultado
+        return "No detecté información clara de gasto. ¿Podrías ser más específico?"
+
+    except Exception as e:
+        logger.error(f"Error en procesar_gasto_desde_audio: {str(e)}")
+        raise
+
+
+def procesar_estado_idle(texto: str, user_id: int) -> str:
+    """
+    Procesa texto en estado IDLE detectando la intención del usuario.
+
+    Detecta automáticamente si es:
+    - Gasto: registrar gastos
+    - Clima: consulta sobre clima/temperatura
+    - Geografía: consulta sobre capitales/países
+    - Otro: cualquier otra consulta
+
+    Args:
+        texto: Texto del usuario
+        user_id: ID del usuario
+
+    Returns:
+        Respuesta apropiada según la intención detectada
+    """
+    logger.info(f"🤖 Procesando estado IDLE: {texto[:50]}... user_id={user_id}")
+
+    try:
+        intension = detectar_intension(texto)
+        logger.info(f"📊 Intención detectada: {intension}")
+
+        if intension == "GASTO":
+            logger.info(f"💰 Procesando como GASTO")
+            return procesar_gasto_desde_audio(texto, user_id)
+
+        elif intension == "CLIMA":
+            logger.info(f"🌤️ Procesando como CLIMA")
+            try:
+                return get_weather()
+            except Exception as e:
+                logger.error(f"Error obteniendo clima: {str(e)}")
+                return "No pude obtener la información climática en este momento."
+
+        elif intension == "GEOGRAFIA":
+            logger.info(f"📍 Procesando como GEOGRAFIA")
+            prompt = f"""
+Usuario pregunta: {texto}
+
+Responde la pregunta sobre geografía.
+"""
+            resultado = orchestrator.run_agent_sync("geography", prompt)
+            return resultado.strip()
+
+        else:  # intension == "OTRO"
+            logger.info(f"❓ Procesando como OTRA consulta")
+            return (
+                "No estoy seguro de tu pregunta. Puedo ayudarte con:\n"
+                "🌤️ Clima (temperatura, lluvia, etc)\n"
+                "📍 Geografía (capitales, países, etc)\n"
+                "💰 Registrar gastos\n\n"
+                "¿Qué necesitas?"
+            )
 
     except Exception as e:
         logger.error(f"Error en procesar_estado_idle: {str(e)}")
