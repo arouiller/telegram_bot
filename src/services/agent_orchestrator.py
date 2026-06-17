@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from google.adk import Agent
 from google import genai
+from google.genai import types
 
 from src.config import GEMINI_API_KEY
 from src.logger import logger
@@ -57,7 +58,7 @@ class AgentOrchestrator:
         }
 
         # Agente de Voz
-        self.agents["voice"] = {
+        self.agents["transcripcion"] = {
             "config": AgentConfig(
                 name="voice_assistant",
                 description="Especialista en transcripción y procesamiento de audio",
@@ -193,6 +194,57 @@ class AgentOrchestrator:
         return loop.run_until_complete(
             self.run_agent(agent_name, prompt, temperature)
         )
+
+    def transcribe_audio_sync(
+        self,
+        audio_bytes: bytes,
+        temperature: Optional[float] = None
+    ) -> str:
+        """
+        Transcribe audio usando el agente de transcripción.
+
+        Args:
+            audio_bytes: Bytes del archivo de audio
+            temperature: Temperatura opcional (por defecto 0.2)
+
+        Returns:
+            Texto transcrito
+
+        Raises:
+            Exception: Si hay error en la transcripción
+        """
+        agent_data = self.agents["transcripcion"]
+        config = agent_data["config"]
+
+        try:
+            logger.info("Transcribiendo audio con agente 'transcripcion'...")
+
+            temp = temperature if temperature is not None else config.temperature
+
+            response = self.client.models.generate_content(
+                model=config.model,
+                contents=[
+                    config.system_instruction,
+                    types.Part.from_bytes(
+                        data=audio_bytes,
+                        mime_type="audio/ogg"
+                    )
+                ],
+                config={
+                    "temperature": temp,
+                }
+            )
+
+            logger.info("Transcripción completada exitosamente")
+            agent_data["last_error"] = None
+
+            return response.text.strip()
+
+        except Exception as e:
+            error_msg = f"Error transcribiendo audio: {str(e)}"
+            logger.error(error_msg)
+            agent_data["last_error"] = str(e)
+            raise Exception(error_msg)
 
     def get_agent_info(self, agent_name: str) -> Dict[str, Any]:
         """Obtiene información sobre un agente."""

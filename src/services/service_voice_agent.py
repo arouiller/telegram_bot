@@ -3,12 +3,10 @@ Service Voice Agent - Procesa audios usando AgentOrchestrator.
 Maneja transcripción, análisis de intención y procesamiento de gastos.
 """
 
-from google import genai
-from google.genai import types
 import time
 import requests
 
-from src.config import GEMINI_API_KEY, LATITUDE, LONGITUDE, TELEGRAM_TOKEN
+from src.config import TELEGRAM_TOKEN
 from src.logger import logger
 from src.services.agent_orchestrator import orchestrator
 from src.services.expense_service import (
@@ -25,7 +23,6 @@ from src.services.conversation_state_service import (
 )
 
 session = requests.Session()
-client = genai.Client(api_key=GEMINI_API_KEY)
 
 # Palabras clave para detección de intención
 PALABRAS_CLAVE_GASTO = [
@@ -72,17 +69,9 @@ def detectar_intension(texto: str) -> str:
     return "OTRO"
 
 
-def get_clima_local() -> str:
-    """Obtiene clima local."""
-    return get_weather(
-        latitud=LATITUDE,
-        longitud=LONGITUDE
-    )
-
-
 def transcribir_audio(audio_bytes: bytes) -> str:
     """
-    Transcribe audio usando el agente de voz.
+    Transcribe audio usando el agente de transcripción del orquestador.
 
     Args:
         audio_bytes: Bytes del archivo de audio
@@ -91,17 +80,7 @@ def transcribir_audio(audio_bytes: bytes) -> str:
         Texto transcrito
     """
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=[
-                "Transcribe exactamente el audio. Devuelve únicamente la transcripción.",
-                types.Part.from_bytes(
-                    data=audio_bytes,
-                    mime_type="audio/ogg"
-                )
-            ]
-        )
-        return response.text.strip()
+        return orchestrator.transcribe_audio_sync(audio_bytes)
     except Exception as e:
         logger.error(f"Error transcribiendo audio: {str(e)}")
         raise
@@ -314,17 +293,23 @@ def procesar_audio_con_tools(audio_bytes: bytes, user_id: int) -> str:
         Respuesta procesada
     """
     try:
+        # ==========================================================
+        # Obtener estado actual del usuario
+        # ==========================================================
         estado = obtener_estado(user_id)
         estado_actual = estado["estado"]
 
         logger.info(f"📊 Estado actual del usuario {user_id}: {estado_actual}")
 
-        # Transcribir audio
+        # ==========================================================
+        # Transcribir el audio a texto
+        # ==========================================================
         inicio = time.time()
         texto = transcribir_audio(audio_bytes)
         logger.info(f"⏱️ Transcripción completada en {time.time() - inicio:.3f}s")
         logger.info(f"📝 Texto: {texto[:100]}...")
 
+        
         # Procesar según estado
         if estado_actual == ESTADO_IDLE:
             return procesar_estado_idle(texto, user_id)
@@ -354,7 +339,7 @@ def procesar_audio_inline(message):
 
     try:
         # ==========================================
-        # GET FILE METADATA
+        # Obtener la medatada del archivo de audio
         # ==========================================
         inicio = time.time()
         response = session.get(
@@ -373,7 +358,7 @@ def procesar_audio_inline(message):
         logger.info(f"⏱️ getFile completado en {time.time() - inicio:.3f}s")
 
         # ==========================================
-        # DOWNLOAD AUDIO
+        # Descargar el archivo de audio usando file_path
         # ==========================================
         file_url = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}"
 
@@ -388,14 +373,14 @@ def procesar_audio_inline(message):
         )
 
         # ==========================================
-        # PROCESS AUDIO
+        # Procesar el audio con herramientas
         # ==========================================
         inicio = time.time()
         resultado = procesar_audio_con_tools(audio_bytes, user_id)
         logger.info(f"⏱️ Procesamiento completado en {time.time() - inicio:.3f}s")
 
         # ==========================================
-        # SEND RESPONSE
+        # Responder al usuario con el resultado
         # ==========================================
         inicio = time.time()
         response = session.post(
