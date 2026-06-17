@@ -151,6 +151,32 @@ Sé conciso en la descripción.
         raise
 
 
+def procesar_geografia_desde_audio(texto: str) -> str:
+    """
+    Procesa una consulta de geografía usando el agente especializado.
+
+    Args:
+        texto: Pregunta sobre geografía del usuario
+
+    Returns:
+        Respuesta sobre geografía
+    """
+    logger.info(f"📍 Procesando geografía desde audio: {texto[:50]}...")
+
+    try:
+        prompt = f"""
+Usuario pregunta: {texto}
+
+Responde la pregunta sobre geografía.
+"""
+        resultado = orchestrator.run_agent_sync("geography", prompt)
+        return resultado.strip()
+
+    except Exception as e:
+        logger.error(f"Error en procesar_geografia_desde_audio: {str(e)}")
+        raise
+
+
 def procesar_estado_idle(texto: str, user_id: int) -> str:
     """
     Procesa texto en estado IDLE detectando la intención del usuario.
@@ -188,13 +214,7 @@ def procesar_estado_idle(texto: str, user_id: int) -> str:
 
         elif intension == "GEOGRAFIA":
             logger.info(f"📍 Procesando como GEOGRAFIA")
-            prompt = f"""
-Usuario pregunta: {texto}
-
-Responde la pregunta sobre geografía.
-"""
-            resultado = orchestrator.run_agent_sync("geography", prompt)
-            return resultado.strip()
+            return procesar_geografia_desde_audio(texto)
 
         else:  # intension == "OTRO"
             logger.info(f"❓ Procesando como OTRA consulta")
@@ -330,7 +350,7 @@ def procesar_audio_inline(message):
         )
 
         # ==========================================
-        # Procesar el audio (transcribir y procesar según estado)
+        # transcribir el audio a texto
         # ==========================================
         inicio = time.time()
 
@@ -345,7 +365,9 @@ def procesar_audio_inline(message):
         logger.info(f"⏱️ Transcripción completada en {time.time() - transcripcion_inicio:.3f}s")
         logger.info(f"📝 Texto: {texto[:100]}...")
 
+        # ==========================================
         # Procesar según estado
+        # ==========================================
         if estado_actual == ESTADO_IDLE:
             resultado = procesar_estado_idle(texto, user_id)
         elif estado_actual == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
