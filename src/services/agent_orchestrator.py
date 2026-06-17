@@ -13,7 +13,9 @@ from google.genai import types
 
 from src.config import GEMINI_API_KEY
 from src.logger import logger
+
 from src.services.geography_services import obtener_capital, obtener_pais
+from src.services.weather_service import get_weather
 
 
 @dataclass
@@ -82,15 +84,10 @@ class AgentOrchestrator:
                                    "Responde en español.",
                 model="gemini-2.5-flash",
                 temperature=0.2,
-                tools=[self._obtener_clima]
+                tools=[get_weather]
             ),
             "last_error": None
         }
-
-    def _obtener_clima(self) -> str:
-        """Tool: Obtiene información climática actual."""
-        # Placeholder - será reemplazado por integración real de weather_service
-        return "Temperatura: 25°C, Humedad: 60%, Soleado"
 
     async def run_agent(
         self,

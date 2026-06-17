@@ -145,8 +145,19 @@ def procesar_clima_desde_audio(texto: str) -> str:
     """
     logger.info(f"🌤️ Procesando clima desde audio: {texto[:50]}...")
 
-    resultado = get_weather()
-    return resultado.strip()
+    try:
+        prompt = f"""
+Usuario pregunta: {texto}
+
+Responde la pregunta sobre clima.
+"""
+        resultado = orchestrator.run_agent_sync("weather", prompt)
+        return resultado.strip()
+
+    except Exception as e:
+        logger.error(f"Error en procesar_clima_desde_audio: {str(e)}")
+        raise
+
 
 def procesar_geografia_desde_audio(texto: str) -> str:
     """
