@@ -281,49 +281,6 @@ Devuelve una sola palabra.
         raise
 
 
-def procesar_audio_con_tools(audio_bytes: bytes, user_id: int) -> str:
-    """
-    Procesa audio considerando el estado del usuario.
-
-    Args:
-        audio_bytes: Bytes del audio
-        user_id: ID del usuario
-
-    Returns:
-        Respuesta procesada
-    """
-    try:
-        # ==========================================================
-        # Obtener estado actual del usuario
-        # ==========================================================
-        estado = obtener_estado(user_id)
-        estado_actual = estado["estado"]
-
-        logger.info(f"📊 Estado actual del usuario {user_id}: {estado_actual}")
-
-        # ==========================================================
-        # Transcribir el audio a texto
-        # ==========================================================
-        inicio = time.time()
-        texto = transcribir_audio(audio_bytes)
-        logger.info(f"⏱️ Transcripción completada en {time.time() - inicio:.3f}s")
-        logger.info(f"📝 Texto: {texto[:100]}...")
-
-        
-        # Procesar según estado
-        if estado_actual == ESTADO_IDLE:
-            return procesar_estado_idle(texto, user_id)
-
-        if estado_actual == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
-            return procesar_confirmacion_gasto(texto, user_id)
-
-        return "❓ Estado desconocido. Intenta con /start"
-
-    except Exception as e:
-        logger.error(f"Error en procesar_audio_con_tools: {str(e)}")
-        raise
-
-
 def procesar_audio_inline(message):
     """
     Procesa mensaje de audio desde Telegram de forma asíncrona.
@@ -373,10 +330,29 @@ def procesar_audio_inline(message):
         )
 
         # ==========================================
-        # Procesar el audio con herramientas
+        # Procesar el audio (transcribir y procesar según estado)
         # ==========================================
         inicio = time.time()
-        resultado = procesar_audio_con_tools(audio_bytes, user_id)
+
+        # Obtener estado actual del usuario
+        estado = obtener_estado(user_id)
+        estado_actual = estado["estado"]
+        logger.info(f"📊 Estado actual del usuario {user_id}: {estado_actual}")
+
+        # Transcribir el audio a texto
+        transcripcion_inicio = time.time()
+        texto = transcribir_audio(audio_bytes)
+        logger.info(f"⏱️ Transcripción completada en {time.time() - transcripcion_inicio:.3f}s")
+        logger.info(f"📝 Texto: {texto[:100]}...")
+
+        # Procesar según estado
+        if estado_actual == ESTADO_IDLE:
+            resultado = procesar_estado_idle(texto, user_id)
+        elif estado_actual == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
+            resultado = procesar_confirmacion_gasto(texto, user_id)
+        else:
+            resultado = "❓ Estado desconocido. Intenta con /start"
+
         logger.info(f"⏱️ Procesamiento completado en {time.time() - inicio:.3f}s")
 
         # ==========================================
