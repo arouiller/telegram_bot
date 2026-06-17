@@ -69,23 +69,6 @@ def detectar_intension(texto: str) -> str:
     return "OTRO"
 
 
-def transcribir_audio(audio_bytes: bytes) -> str:
-    """
-    Transcribe audio usando el agente de transcripción del orquestador.
-
-    Args:
-        audio_bytes: Bytes del archivo de audio
-
-    Returns:
-        Texto transcrito
-    """
-    try:
-        return orchestrator.transcribe_audio_sync(audio_bytes)
-    except Exception as e:
-        logger.error(f"Error transcribiendo audio: {str(e)}")
-        raise
-
-
 def procesar_gasto_desde_audio(texto: str, user_id: int) -> str:
     """
     Procesa un audio identificado como gasto.
@@ -375,7 +358,7 @@ def procesar_audio_inline(message):
 
         # Transcribir el audio a texto
         transcripcion_inicio = time.time()
-        texto = transcribir_audio(audio_bytes)
+        texto = orchestrator.transcribe_audio_sync(audio_bytes)
         logger.info(f"⏱️ Transcripción completada en {time.time() - transcripcion_inicio:.3f}s")
         logger.info(f"📝 Texto: {texto[:100]}...")
 
