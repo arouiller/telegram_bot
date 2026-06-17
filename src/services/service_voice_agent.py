@@ -150,6 +150,20 @@ Sé conciso en la descripción.
         logger.error(f"Error en procesar_gasto_desde_audio: {str(e)}")
         raise
 
+def procesar_clima_desde_audio(texto: str) -> str:
+    """
+    Procesa una consulta de clima usando el agente especializado.
+
+    Args:
+        texto: Pregunta sobre clima del usuario
+
+    Returns:
+        Respuesta sobre clima
+    """
+    logger.info(f"🌤️ Procesando clima desde audio: {texto[:50]}...")
+
+    resultado = get_weather()
+    return resultado.strip()
 
 def procesar_geografia_desde_audio(texto: str) -> str:
     """
@@ -207,7 +221,7 @@ def procesar_estado_idle(texto: str, user_id: int) -> str:
         elif intension == "CLIMA":
             logger.info(f"🌤️ Procesando como CLIMA")
             try:
-                return get_weather()
+                return procesar_clima_desde_audio(texto)
             except Exception as e:
                 logger.error(f"Error obteniendo clima: {str(e)}")
                 return "No pude obtener la información climática en este momento."
