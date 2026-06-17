@@ -13,6 +13,7 @@ from google.genai import types
 
 from src.config import GEMINI_API_KEY
 from src.logger import logger
+from src.services.geography_services import obtener_capital, obtener_pais
 
 
 @dataclass
@@ -52,7 +53,7 @@ class AgentOrchestrator:
                                    "Responde en español.",
                 model="gemini-2.5-flash",
                 temperature=0.3,
-                tools=[self._obtener_capital, self._obtener_pais]
+                tools=[obtener_capital, obtener_pais]
             ),
             "last_error": None
         }
@@ -85,27 +86,6 @@ class AgentOrchestrator:
             ),
             "last_error": None
         }
-
-    def _obtener_capital(self, pais: str) -> str:
-        """Tool: Obtiene la capital de un país."""
-        capitales = {
-            "Francia": "París",
-            "Japón": "Tokio",
-            "Argentina": "Buenos Aires"
-        }
-        return capitales.get(pais, "Capital desconocida")
-
-    def _obtener_pais(self, capital: str) -> str:
-        """Tool: Obtiene el país de una capital."""
-        capitales = {
-            "Francia": "París",
-            "Japón": "Tokio",
-            "Argentina": "Buenos Aires"
-        }
-        for pais, cap in capitales.items():
-            if cap == capital:
-                return pais
-        return "País desconocido"
 
     def _obtener_clima(self) -> str:
         """Tool: Obtiene información climática actual."""
