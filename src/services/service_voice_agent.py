@@ -15,7 +15,6 @@ from src.services.expense_service import (
     cancelar_gasto,
     actualizar_categoria
 )
-from src.services.weather_service import get_weather
 from src.services.conversation_state_service import (
     obtener_estado,
     ESTADO_IDLE,
@@ -23,50 +22,6 @@ from src.services.conversation_state_service import (
 )
 
 session = requests.Session()
-
-# Palabras clave para detección de intención
-PALABRAS_CLAVE_GASTO = [
-    "registrar", "gasto", "pagar", "gasté", "pagué",
-    "salida", "cuenta", "factura", "costo", "egreso"
-]
-
-PALABRAS_CLAVE_CLIMA = [
-    "clima", "temperatura", "lluvia", "tiempo",
-    "frío", "calor", "soleado", "nublado", "cielo",
-    "nubes", "viento", "humedad", "llueve", "lluvia"
-]
-
-PALABRAS_CLAVE_GEOGRAFIA = [
-    "capital", "país", "pais", "ciudad", "ubicación",
-    "donde", "dónde", "capital de", "geografía", "geografia"
-]
-
-
-def detectar_intension(texto: str) -> str:
-    """
-    Detecta la intención del usuario basado en palabras clave.
-
-    Args:
-        texto: Texto del usuario
-
-    Returns:
-        "GASTO" si es sobre registrar gastos
-        "CLIMA" si es sobre clima/temperatura
-        "GEOGRAFIA" si es sobre geografía
-        "OTRO" para cualquier otra consulta
-    """
-    texto_lower = texto.lower()
-
-    if any(palabra in texto_lower for palabra in PALABRAS_CLAVE_GASTO):
-        return "GASTO"
-
-    if any(palabra in texto_lower for palabra in PALABRAS_CLAVE_CLIMA):
-        return "CLIMA"
-
-    if any(palabra in texto_lower for palabra in PALABRAS_CLAVE_GEOGRAFIA):
-        return "GEOGRAFIA"
-
-    return "OTRO"
 
 
 def procesar_gasto(texto: str, user_id: int) -> str:

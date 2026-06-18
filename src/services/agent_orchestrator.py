@@ -15,7 +15,7 @@ from src.config import GEMINI_API_KEY
 from src.logger import logger
 
 from src.services.geography_services import obtener_capital, obtener_pais
-from src.services.weather_service import get_weather
+from src.services.weather_service import get_weather, get_latitude_and_longitude
 
 # Palabras clave para detección local de intención
 _PALABRAS_CLAVE_GASTO = [
@@ -125,12 +125,23 @@ class AgentOrchestrator:
             "config": AgentConfig(
                 name="weather_assistant",
                 description="Especialista en información meteorológica",
-                system_instruction="Eres un asistente especializado en información climática. "
-                                   "Proporciona datos de temperatura, humedad y condiciones del tiempo. "
-                                   "Responde en español.",
+                system_instruction="""Eres un asistente especializado en información climática.
+
+Tienes dos herramientas disponibles:
+1. get_latitude_and_longitude(localidad, provincia): Convierte una ciudad en coordenadas
+2. get_weather(latitud, longitud): Obtiene el clima para esas coordenadas
+
+Cuando el usuario pregunte por clima:
+1. Extrae la localidad y provincia del texto
+2. Si menciona una ubicación específica, usa get_latitude_and_longitude() primero
+3. Luego usa get_weather() con las coordenadas obtenidas
+4. Si no menciona ubicación, usa las coordenadas por defecto de Rosario
+
+Proporciona la información de forma clara y amigable.
+Siempre responde en español.""",
                 model="gemini-2.5-flash",
                 temperature=0.2,
-                tools=[get_weather]
+                tools=[get_weather, get_latitude_and_longitude]
             ),
             "last_error": None
         }
