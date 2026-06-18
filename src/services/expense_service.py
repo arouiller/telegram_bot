@@ -19,61 +19,9 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 gastos_latentes: Dict[int, Dict] = {}
 gastos_confirmados: List[Dict] = []
 
-CATEGORIAS_DISPONIBLES = [
-    "Viveres", "Transporte", "Servicios",
-    "Entretenimiento", "Tecnologia", "Salud",
-    "Educacion", "Otros"
-]
-
-
 # =====================================================
 # FUNCIONES AUXILIARES
 # =====================================================
-
-def _clasificar_gasto(descripcion: str) -> str:
-    """Sugiere categoría basada en descripción usando Gemini."""
-    ejemplos = [
-        ("Compra supermercado Carrefour", "Viveres"),
-        ("Compra en verdulería", "Viveres"),
-        ("Carnicería", "Viveres"),
-        ("Carga de nafta", "Transporte"),
-        ("Uber", "Transporte"),
-        ("Netflix", "Servicios"),
-        ("Spotify", "Servicios"),
-        ("Internet", "Servicios"),
-        ("Entrada al cine", "Entretenimiento"),
-        ("Steam", "Entretenimiento"),
-        ("AWS", "Tecnologia"),
-        ("Consulta médica", "Salud"),
-        ("Curso de inglés", "Educacion"),
-    ]
-
-    categorias_str = ", ".join(CATEGORIAS_DISPONIBLES)
-
-    prompt = f"""
-Clasifica el siguiente gasto en UNA SOLA categoría.
-
-Descripción: {descripcion}
-
-Ejemplos:
-{chr(10).join(f"- {texto} -> {cat}" for texto, cat in ejemplos)}
-
-Categorías disponibles: {categorias_str}
-
-Devuelve SOLO el nombre exacto de la categoría, sin explicación.
-"""
-
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
-            contents=prompt
-        )
-        categoria = response.text.strip()
-        return categoria if categoria in CATEGORIAS_DISPONIBLES else "Otros"
-    except Exception as e:
-        logger.error(f"Error clasificando gasto: {str(e)}")
-        return "Otros"
-
 
 def _validar_campos(gasto: Dict) -> Tuple[bool, List[str]]:
     """
@@ -83,7 +31,7 @@ def _validar_campos(gasto: Dict) -> Tuple[bool, List[str]]:
         (es_valido, campos_faltantes)
     """
     campos_requeridos = [
-        "monto_total", "descripcion", "categoria",
+        "monto_total", "descripcion",
         "efectivo_o_tarjeta"
     ]
 
@@ -109,9 +57,15 @@ def _get_expense_draft_dict(user_id: int) -> Optional[Dict]:
     return gastos_latentes.get(user_id)
 
 
-def _formatear_estado_gasto(gasto: Dict) -> str:
-    """Formatea un gasto para mostrarlo al usuario."""
-    texto = "📊 ESTADO ACTUAL:\n"
+def _formatear_estado_gasto(gasto: Dict, prefix: str = "📊 ESTADO ACTUAL:\n") -> str:
+    """
+    Formatea un gasto para mostrarlo al usuario.
+
+    Args:
+        gasto: Diccionario del gasto
+        prefix: Prefijo del estado (default: "📊 ESTADO ACTUAL:\n")
+    """
+    texto = prefix
 
     if gasto.get("monto_total") is not None:
         texto += f"├─ 💰 Monto: ${gasto['monto_total']} {gasto.get('moneda', 'ARS')}\n"
@@ -121,11 +75,6 @@ def _formatear_estado_gasto(gasto: Dict) -> str:
 
     if gasto.get("fecha"):
         texto += f"├─ 📅 Fecha: {gasto['fecha']}\n"
-
-    if gasto.get("categoria"):
-        texto += f"├─ 📁 Categoría: {gasto['categoria']}\n"
-    else:
-        texto += f"├─ 📁 Categoría: 🔴 SIN DEFINIR\n"
 
     if gasto.get("efectivo_o_tarjeta"):
         if gasto["efectivo_o_tarjeta"] == "tarjeta":
@@ -161,7 +110,6 @@ def create_or_get_expense_draft(user_id: int) -> str:
             "monto_total": None,
             "descripcion": None,
             "moneda": "ARS",
-            "categoria": None,
             "fecha": hoy,
             "efectivo_o_tarjeta": None,
             "cantidad_de_cuotas": None,
@@ -254,11 +202,6 @@ def update_expense_draft(user_id: int, field: str, value: str) -> str:
         logger.error(f"Error convirtiendo {field}={value}: {str(e)}")
         return f"❌ Error: No pude procesar {field}={value}"
 
-    # Auto-clasificar categoría si tiene descripción y aún no tiene categoría
-    if field == "descripcion" and value and not gasto.get("categoria"):
-        gasto["categoria"] = _clasificar_gasto(value)
-        logger.info(f"Categoría sugerida: {gasto['categoria']}")
-
     logger.info(f"✏️ Gasto latente actualizado: {field}={value}")
     return f"✅ {field.capitalize()} actualizado a: {value}"
 
@@ -313,18 +256,9 @@ def confirm_expense_draft(user_id: int) -> str:
     # Remover de latentes
     del gastos_latentes[user_id]
 
-    # Limpiar estado de conversación
-    from src.services.conversation_state_service import limpiar_estado
-    limpiar_estado(user_id)
-
     logger.info(f"✅ Gasto confirmado para user_id={user_id}")
-    return (
-        f"✅✅✅ GASTO REGISTRADO:\n"
-        f"💰 ${gasto.get('monto_total')} {gasto.get('moneda')}\n"
-        f"📝 {gasto.get('descripcion')}\n"
-        f"📁 {gasto.get('categoria')}\n"
-        f"💳 {gasto.get('efectivo_o_tarjeta')}"
-    )
+
+    return _formatear_estado_gasto(gasto, prefix="💾 Gasto guardado:\n")
 
 
 def cancel_expense_draft(user_id: int) -> bool:
