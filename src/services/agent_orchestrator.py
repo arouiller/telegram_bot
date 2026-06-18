@@ -1,11 +1,12 @@
-"""
-Agent Orchestrator - Centraliza la ejecución de agentes de Google ADK.
+﻿"""
+Agent Orchestrator - Centraliza la ejecuciÃ³n de agentes de Google ADK.
 Proporciona una interfaz unificada para ejecutar diferentes agentes especializados.
 """
 
 import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
+from pathlib import Path
 
 from google.adk import Agent
 from google import genai
@@ -25,28 +26,54 @@ from src.services.expense_service import (
     get_missing_fields
 )
 
-# Palabras clave para detección local de intención
+# Palabras clave para detecciÃ³n local de intenciÃ³n
 _PALABRAS_CLAVE_GASTO = [
-    "registrar", "gasto", "pagar", "gasté", "pagué",
+    "registrar", "gasto", "pagar", "gastÃ©", "paguÃ©",
     "salida", "cuenta", "factura", "costo", "egreso"
 ]
 
 _PALABRAS_CLAVE_CLIMA = [
     "clima", "temperatura", "lluvia", "tiempo",
-    "frío", "calor", "soleado", "nublado", "cielo",
+    "frÃ­o", "calor", "soleado", "nublado", "cielo",
     "nubes", "viento", "humedad", "llueve", "lluvia"
 ]
 
 _PALABRAS_CLAVE_GEOGRAFIA = [
-    "capital", "país", "pais", "ciudad", "ubicación",
-    "donde", "dónde", "capital de", "geografía", "geografia"
+    "capital", "paÃ­s", "pais", "ciudad", "ubicaciÃ³n",
+    "donde", "dÃ³nde", "capital de", "geografÃ­a", "geografia"
 ]
 
 _AVOID_DETECTION = True
 
+# =====================================================
+# CARGA DE PROMPTS
+# =====================================================
+
+PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+
+def _load_prompt(agent_name: str) -> str:
+    """
+    Carga el prompt de un archivo de texto.
+
+    Args:
+        agent_name: Nombre del agente (geography, transcripcion, weather, expense)
+
+    Returns:
+        Contenido del archivo prompt
+    """
+    prompt_file = PROMPTS_DIR / f"{agent_name}.txt"
+
+    try:
+        with open(prompt_file, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        logger.error(f"âŒ Archivo de prompt no encontrado: {prompt_file}")
+        return f"Error cargando prompt para {agent_name}"
+
+
 def _detect_intention_local(texto: str) -> str:
     """
-    Detecta la intención del usuario basado en palabras clave (rápido, local).
+    Detecta la intenciÃ³n del usuario basado en palabras clave (rÃ¡pido, local).
 
     Args:
         texto: Texto del usuario
@@ -74,7 +101,7 @@ def _detect_intention_local(texto: str) -> str:
 
 @dataclass
 class AgentConfig:
-    """Configuración de un agente."""
+    """ConfiguraciÃ³n de un agente."""
     name: str
     description: str
     system_instruction: str
@@ -86,7 +113,7 @@ class AgentConfig:
 class AgentOrchestrator:
     """
     Orquestador central de agentes ADK.
-    Gestiona la creación, configuración y ejecución de agentes especializados.
+    Gestiona la creaciÃ³n, configuraciÃ³n y ejecuciÃ³n de agentes especializados.
     """
 
     def __init__(self):
@@ -99,14 +126,12 @@ class AgentOrchestrator:
     def _initialize_agents(self) -> None:
         """Inicializa todos los agentes disponibles."""
 
-        # Agente de Geografía
+        # Agente de GeografÃ­a
         self.agents["geography"] = {
             "config": AgentConfig(
                 name="geography_assistant",
-                description="Especialista en geografía, capitales y ubicaciones",
-                system_instruction="Eres un asistente experto en geografía llamado asistente_geografico. "
-                                   "Usa tus herramientas para responder preguntas sobre capitales y países. "
-                                   "Responde en español.",
+                description="Especialista en geografÃ­a, capitales y ubicaciones",
+                system_instruction=_load_prompt("geography"),
                 model="gemini-2.5-flash",
                 temperature=0.3,
                 tools=[obtener_capital, obtener_pais]
@@ -118,9 +143,8 @@ class AgentOrchestrator:
         self.agents["transcripcion"] = {
             "config": AgentConfig(
                 name="voice_assistant",
-                description="Especialista en transcripción y procesamiento de audio",
-                system_instruction="Eres un asistente especializado en transcribir y analizar audio. "
-                                   "Devuelve transcripciones claras y precisas en español.",
+                description="Especialista en transcripciÃ³n y procesamiento de audio",
+                system_instruction=_load_prompt("transcripcion"),
                 model="gemini-2.5-flash-lite",
                 temperature=0.2,
                 tools=None
@@ -132,21 +156,8 @@ class AgentOrchestrator:
         self.agents["weather"] = {
             "config": AgentConfig(
                 name="weather_assistant",
-                description="Especialista en información meteorológica",
-                system_instruction="""Eres un asistente especializado en información climática.
-
-Tienes dos herramientas disponibles:
-1. get_latitude_and_longitude(localidad, provincia): Convierte una ciudad en coordenadas
-2. get_weather(latitud, longitud): Obtiene el clima para esas coordenadas
-
-Cuando el usuario pregunte por clima:
-1. Extrae la localidad y provincia del texto
-2. Si menciona una ubicación específica, usa get_latitude_and_longitude() primero
-3. Luego usa get_weather() con las coordenadas obtenidas
-4. Si no menciona ubicación, usa las coordenadas por defecto de Rosario
-
-Proporciona la información de forma clara y amigable.
-Siempre responde en español.""",
+                description="Especialista en informaciÃ³n meteorolÃ³gica",
+                system_instruction=_load_prompt("weather"),
                 model="gemini-2.5-flash",
                 temperature=0.2,
                 tools=[get_weather, get_latitude_and_longitude]
@@ -154,15 +165,15 @@ Siempre responde en español.""",
             "last_error": None
         }
 
-        # Agente de Detección de Intención
+        # Agente de DetecciÃ³n de IntenciÃ³n
         self.agents["intent_detection"] = {
             "config": AgentConfig(
                 name="intent_detector",
-                description="Especialista en detectar la intención del usuario",
-                system_instruction="Eres un especialista en detectar la intención de un texto. "
-                                   "Clasifica ÚNICAMENTE en una de estas categorías: GASTO, CLIMA, GEOGRAFIA u OTRO. "
-                                   "Responde solo con la categoría, sin explicación. "
-                                   "Ejemplos: 'Gasto 500' → GASTO | '¿Clima?' → CLIMA | '¿Capital de Francia?' → GEOGRAFIA | 'Hola' → OTRO",
+                description="Especialista en detectar la intenciÃ³n del usuario",
+                system_instruction="Eres un especialista en detectar la intenciÃ³n de un texto. "
+                                   "Clasifica ÃšNICAMENTE en una de estas categorÃ­as: GASTO, CLIMA, GEOGRAFIA u OTRO. "
+                                   "Responde solo con la categorÃ­a, sin explicaciÃ³n. "
+                                   "Ejemplos: 'Gasto 500' â†’ GASTO | 'Â¿Clima?' â†’ CLIMA | 'Â¿Capital de Francia?' â†’ GEOGRAFIA | 'Hola' â†’ OTRO",
                 model="gemini-2.5-flash",
                 temperature=0.1,
                 tools=None
@@ -175,94 +186,7 @@ Siempre responde en español.""",
             "config": AgentConfig(
                 name="expense_assistant",
                 description="Especialista en registro conversacional de gastos",
-                system_instruction="""Eres un asistente inteligente de registro de gastos conversacional.
-
-Tu objetivo: Ayudar al usuario a registrar gastos de forma natural, permitiendo cambios y dando visibilidad total del estado.
-
-FUNCIONES DISPONIBLES:
-- create_expense_draft(user_id): Crea nuevo gasto
-- update_expense_draft(user_id, field, value): Actualiza campo (value siempre como string)
-- get_expense_draft(user_id): Lee estado actual del gasto
-- get_missing_fields(user_id): Obtiene campos faltantes
-- confirm_expense_draft(user_id): Guarda cuando esté completo
-- cancel_expense_draft(user_id): Cancela el gasto
-
-FLUJO:
-1. El usuario proporciona información del gasto
-2. Si no existe gasto → create_expense_draft(user_id)
-3. Extrae y actualiza campos con update_expense_draft()
-4. Muestra estado con get_expense_draft()
-5. Si usuario desea desea registrar el gasto valida que el mismo pueda ser registrado (get_missing_fields() retorna "COMPLETO")  → confirm_expense_draft() sino informa qué falta
-6. Si usuario desea cancelar → cancel_expense_draft()
-
-INSTRUCCIONES IMPORTANTES:
-- Siempre pasa strings a update_expense_draft (incluso números: "500", "3")
-- Después de actualizar, usa get_expense_draft() para mostrar estado
-- Antes de confirmar, usa get_missing_fields() para verificar completitud
-- Si get_missing_fields() retorna "COMPLETO", puedes confirmar
-- Detecta intención: CANCELAR, CAMBIAR, REGISTRAR, ACTUALIZAR
-- Responde en español con emojis
-- Sé conversacional y natural
-
-CAMPOS REQUERIDOS:
-- monto (número > 0)
-- descripcion (texto)
-- moneda (default: ARS)
-- categoria (Víveres | Transporte | Servicios | Entretenimiento | Tecnologia | Salud | Educacion | Otros)
-- fecha (default: hoy)
-- efectivo_o_tarjeta (efectivo | tarjeta)
-- Si tarjeta:
-  - cuotas (número > 0)
-  - monto_por_cuota (calculado automáticamente)
-
-REGLAS:
-- Si el usuario da monto_total ≠ cuotas × monto_por_cuota → preguntar cuál es correcto
-- Si cambia monto con cuotas → recalcular automáticamente
-- Si falta algo crítico → NO permitir guardar, indicar qué falta
-- Responder siempre en español, con emojis para claridad
-- Ser conversacional y natural
-
-FORMATO DE RESPUESTA:
-- Mostrar estado en bloque legible con emojis
-- Marcar con ✅ lo completo, 🔴 lo pendiente
-- Dar opciones claras
-
-EJEMPLOS:
-Usuario: "Gasto 500 en supermercado"
-Tu respuesta:
-"✅ Gasto registrado:
-📊 ESTADO ACTUAL:
-├─ 💰 Monto: $500 ARS
-├─ 📝 Descripción: supermercado
-├─ 📅 Fecha: 17/06/2026
-├─ 📁 Categoría: Víveres (sugerida)
-└─ 🔴 Medio de pago: SIN DEFINIR
-
-⏳ PENDIENTE:
-└─ 💳 ¿Efectivo o tarjeta?
-
-💬 Di: 'Efectivo', 'Tarjeta', cambiar algo, o 'Cancela'"
-
-Usuario: "Cambiar a 600"
-Tu respuesta:
-"✅ Monto actualizado:
-📊 ESTADO ACTUAL:
-├─ 💰 Monto: $600 ARS ← ACTUALIZADO
-...
-⏳ PENDIENTE:
-└─ 💳 ¿Efectivo o tarjeta?"
-
-Usuario: "Registrar gasto"
-Tu respuesta (si completo):
-"✅✅✅ GASTO REGISTRADO EXITOSAMENTE:
-💰 $600 ARS
-📝 Supermercado
-📁 Víveres
-💳 Tarjeta en 3 cuotas de $200 c/u
-📅 17/06/2026
-
-🎉 ¡Gasto confirmado!"
-""",
+                system_instruction=_load_prompt("expense"),
                 model="gemini-2.5-flash",
                 temperature=0.2,
                 tools=[
@@ -284,19 +208,19 @@ Tu respuesta (si completo):
         temperature: Optional[float] = None
     ) -> str:
         """
-        Ejecuta un agente con un prompt específico.
+        Ejecuta un agente con un prompt especÃ­fico.
 
         Args:
             agent_name: Nombre del agente ('geography', 'voice', 'weather')
             prompt: Mensaje de entrada para el agente
-            temperature: Temperatura opcional (sobrescribe la configuración)
+            temperature: Temperatura opcional (sobrescribe la configuraciÃ³n)
 
         Returns:
             Respuesta del agente como string
 
         Raises:
             ValueError: Si el agente no existe
-            Exception: Si hay error en la ejecución del agente
+            Exception: Si hay error en la ejecuciÃ³n del agente
         """
         if agent_name not in self.agents:
             raise ValueError(f"Agente '{agent_name}' no encontrado. "
@@ -339,7 +263,7 @@ Tu respuesta (si completo):
         temperature: Optional[float] = None
     ) -> str:
         """
-        Versión síncrona de run_agent (compatible con código existente).
+        VersiÃ³n sÃ­ncrona de run_agent (compatible con cÃ³digo existente).
 
         Args:
             agent_name: Nombre del agente
@@ -366,7 +290,7 @@ Tu respuesta (si completo):
         temperature: Optional[float] = None
     ) -> str:
         """
-        Transcribe audio usando el agente de transcripción.
+        Transcribe audio usando el agente de transcripciÃ³n.
 
         Args:
             audio_bytes: Bytes del archivo de audio
@@ -376,7 +300,7 @@ Tu respuesta (si completo):
             Texto transcrito
 
         Raises:
-            Exception: Si hay error en la transcripción
+            Exception: Si hay error en la transcripciÃ³n
         """
         agent_data = self.agents["transcripcion"]
         config = agent_data["config"]
@@ -400,7 +324,7 @@ Tu respuesta (si completo):
                 }
             )
 
-            logger.info("Transcripción completada exitosamente")
+            logger.info("TranscripciÃ³n completada exitosamente")
             agent_data["last_error"] = None
 
             return response.text.strip()
@@ -417,9 +341,9 @@ Tu respuesta (si completo):
         temperature: Optional[float] = None
     ) -> str:
         """
-        Detecta la intención del usuario con estrategia híbrida.
+        Detecta la intenciÃ³n del usuario con estrategia hÃ­brida.
 
-        Primero intenta detectar con palabras clave (rápido, local).
+        Primero intenta detectar con palabras clave (rÃ¡pido, local).
         Si no es claro (resultado = OTRO), consulta el agente (inteligente).
 
         Args:
@@ -427,28 +351,28 @@ Tu respuesta (si completo):
             temperature: Temperatura opcional (por defecto 0.1)
 
         Returns:
-            Intención detectada: GASTO, CLIMA, GEOGRAFIA o OTRO
+            IntenciÃ³n detectada: GASTO, CLIMA, GEOGRAFIA o OTRO
         """
         try:
-            # Paso 1: Intentar con palabras clave (rápido)
+            # Paso 1: Intentar con palabras clave (rÃ¡pido)
             intension_local = _detect_intention_local(texto)
 
             if intension_local != "OTRO":
-                logger.info(f"🎯 Intención detectada localmente: {intension_local}")
+                logger.info(f"ðŸŽ¯ IntenciÃ³n detectada localmente: {intension_local}")
                 return intension_local
 
             # Paso 2: Si no es claro, consultar agente (inteligente)
-            logger.info(f"❓ Intención no clara, consultando agente...")
+            logger.info(f"â“ IntenciÃ³n no clara, consultando agente...")
             try:
                 prompt = f"""
-Clasifica la intención en GASTO, CLIMA, GEOGRAFIA u OTRO:
+Clasifica la intenciÃ³n en GASTO, CLIMA, GEOGRAFIA u OTRO:
 "{texto}"
 
-Responde SOLO con la categoría, sin explicación.
+Responde SOLO con la categorÃ­a, sin explicaciÃ³n.
 """
                 resultado = self.run_agent_sync("intent_detection", prompt, temperature)
                 intension_agente = resultado.strip().upper()
-                logger.info(f"🎯 Intención detectada por agente: {intension_agente}")
+                logger.info(f"ðŸŽ¯ IntenciÃ³n detectada por agente: {intension_agente}")
                 return intension_agente
 
             except Exception as e:
@@ -460,7 +384,7 @@ Responde SOLO con la categoría, sin explicación.
             raise
 
     def get_agent_info(self, agent_name: str) -> Dict[str, Any]:
-        """Obtiene información sobre un agente."""
+        """Obtiene informaciÃ³n sobre un agente."""
         if agent_name not in self.agents:
             return {"error": f"Agente '{agent_name}' no encontrado"}
 

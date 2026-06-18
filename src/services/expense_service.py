@@ -9,12 +9,6 @@ from google import genai
 
 from src.config import GEMINI_API_KEY
 from src.logger import logger
-from src.services.conversation_state_service import (
-    establecer_estado,
-    limpiar_estado,
-    ESTADO_REGISTRANDO_GASTO,
-    ESTADO_IDLE
-)
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -174,7 +168,6 @@ def create_expense_draft(user_id: int) -> str:
     }
 
     gastos_latentes[user_id] = gasto
-    establecer_estado(user_id, ESTADO_REGISTRANDO_GASTO)
 
     logger.info(f"💼 Gasto latente creado para user_id={user_id}")
     return "✅ Gasto creado. Proporciona detalles (monto, descripción, etc.)"
@@ -292,8 +285,6 @@ def confirm_expense_draft(user_id: int) -> str:
     # Remover de latentes
     del gastos_latentes[user_id]
 
-    # Limpiar estado de conversación
-    limpiar_estado(user_id)
 
     logger.info(f"✅ Gasto confirmado para user_id={user_id}")
     return (
@@ -317,7 +308,6 @@ def cancel_expense_draft(user_id: int) -> bool:
         return False
 
     del gastos_latentes[user_id]
-    limpiar_estado(user_id)
 
     logger.info(f"❌ Gasto latente cancelado para user_id={user_id}")
     return True
