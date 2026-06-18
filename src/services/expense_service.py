@@ -83,7 +83,7 @@ def _validar_campos(gasto: Dict) -> Tuple[bool, List[str]]:
         (es_valido, campos_faltantes)
     """
     campos_requeridos = [
-        "monto", "descripcion", "categoria",
+        "monto_total", "descripcion", "categoria",
         "efectivo_o_tarjeta"
     ]
 
@@ -96,8 +96,8 @@ def _validar_campos(gasto: Dict) -> Tuple[bool, List[str]]:
 
     # Si es tarjeta, también necesita cuotas
     if gasto.get("efectivo_o_tarjeta") == "tarjeta":
-        if gasto.get("cuotas") is None:
-            campos_faltantes.append("cuotas")
+        if gasto.get("cantidad_de_cuotas") is None:
+            campos_faltantes.append("cantidad_de_cuotas")
         if gasto.get("monto_por_cuota") is None:
             campos_faltantes.append("monto_por_cuota")
 
@@ -129,7 +129,7 @@ def _formatear_estado_gasto(gasto: Dict) -> str:
 
     if gasto.get("efectivo_o_tarjeta"):
         if gasto["efectivo_o_tarjeta"] == "tarjeta":
-            cuotas = gasto.get("cuotas", "?")
+            cuotas = gasto.get("cantidad_de_cuotas", "?")
             monto_cuota = gasto.get("monto_por_cuota", "?")
             texto += f"├─ 💳 Tarjeta en {cuotas} cuotas de ${monto_cuota}\n"
         else:
@@ -146,14 +146,7 @@ def _formatear_estado_gasto(gasto: Dict) -> str:
 
 def create_or_get_expense_draft(user_id: int) -> str:
     """
-    Crea un gasto latente/borrador nuevo.
-
-    Returns:
-        String confirmando creación
-    """
-
-    """
-    Obtiene el estado del gasto latente del usuario.
+    Crea o obtiene un gasto latente/borrador.
 
     Returns:
         String formateado con el estado del gasto
@@ -161,30 +154,65 @@ def create_or_get_expense_draft(user_id: int) -> str:
     gasto = gastos_latentes.get(user_id)
 
     if not gasto:
-
         hoy = datetime.now().strftime("%d/%m/%Y")
 
         gasto = {
             "user_id": user_id,
-            "monto": None,
+            "monto_total": None,
             "descripcion": None,
             "moneda": "ARS",
             "categoria": None,
             "fecha": hoy,
             "efectivo_o_tarjeta": None,
-            "cuotas": None,
+            "cantidad_de_cuotas": None,
             "monto_por_cuota": None,
             "estado": "draft",
             "created_at": datetime.now().isoformat()
         }
 
         gastos_latentes[user_id] = gasto
-
         logger.info(f"💼 Gasto latente creado para user_id={user_id}")
-
 
     return _formatear_estado_gasto(gasto)
 
+def update_gasto_latente_tarjeta(user_id: int):
+    gasto = gastos_latentes.get(user_id)
+    if gasto:
+        if gasto["efectivo_o_tarjeta"] != "tarjeta":
+            gasto["efectivo_o_tarjeta"] = "tarjeta"
+            gasto["cantidad_de_cuotas"] = 1
+            if gasto.get("monto_total"):
+                gasto["monto_por_cuota"] = gasto["monto_total"]
+
+def update_gasto_latente_efectivo(user_id: int):
+    gasto = gastos_latentes.get(user_id)
+    if gasto:
+        gasto["efectivo_o_tarjeta"] = "Efectivo"
+        gasto["cantidad_de_cuotas"] = None
+        gasto["monto_por_cuota"] = None
+
+def update_gasto_latente_monto_total(user_id: int, monto_total: float):
+    gasto = gastos_latentes.get(user_id)
+    if gasto:
+        gasto["monto_total"] = monto_total
+        if gasto["efectivo_o_tarjeta"] == "tarjeta" and gasto.get("cantidad_de_cuotas"):
+            gasto["monto_por_cuota"] = gasto["monto_total"] / gasto["cantidad_de_cuotas"]
+
+def update_gasto_latente_monto_por_cuota(user_id: int, monto_por_cuota: float):
+    gasto = gastos_latentes.get(user_id)
+    if gasto:
+        update_gasto_latente_tarjeta(user_id)
+        gasto["monto_por_cuota"] = monto_por_cuota
+        if gasto.get("cantidad_de_cuotas"):
+            gasto["monto_total"] = gasto["monto_por_cuota"] * gasto["cantidad_de_cuotas"]
+
+def update_gasto_latente_cantidad_cuotas(user_id: int, cantidad_cuotas: float):
+    gasto = gastos_latentes.get(user_id)
+    if gasto:
+        update_gasto_latente_tarjeta(user_id)
+        gasto["cantidad_de_cuotas"] = cantidad_cuotas
+        if gasto.get("monto_por_cuota"):
+            gasto["monto_total"] = gasto["monto_por_cuota"] * gasto["cantidad_de_cuotas"]
 
 def update_expense_draft(user_id: int, field: str, value: str) -> str:
     """
@@ -206,23 +234,25 @@ def update_expense_draft(user_id: int, field: str, value: str) -> str:
 
     # Conversiones de tipo según el campo
     try:
-        if field == "monto" and value:
-            gasto[field] = float(value)
-        elif field == "cuotas" and value:
-            gasto[field] = int(value)
+        if field == "efectivo_o_tarjeta":
+            if value.lower() == "efectivo":
+                update_gasto_latente_efectivo(user_id)
+            elif value.lower() == "tarjeta":
+                update_gasto_latente_tarjeta(user_id)
+
+        elif field == "monto_total" and value:
+            update_gasto_latente_monto_total(user_id, float(value))
+
+        elif field == "cantidad_de_cuotas" and value:
+            update_gasto_latente_cantidad_cuotas(user_id, int(value))
+
         elif field == "monto_por_cuota" and value:
-            gasto[field] = float(value)
+            update_gasto_latente_monto_por_cuota(user_id, float(value))
         else:
             gasto[field] = value
     except (ValueError, TypeError) as e:
         logger.error(f"Error convirtiendo {field}={value}: {str(e)}")
         return f"❌ Error: No pude procesar {field}={value}"
-
-    # Lógica automática: recalcular monto_por_cuota si cambió monto o cuotas
-    if field in ["monto", "cuotas"]:
-        if gasto.get("monto") and gasto.get("cuotas"):
-            gasto["monto_por_cuota"] = round(gasto["monto"] / gasto["cuotas"], 2)
-            logger.info(f"Recalculado monto_por_cuota: {gasto['monto_por_cuota']}")
 
     # Auto-clasificar categoría si tiene descripción y aún no tiene categoría
     if field == "descripcion" and value and not gasto.get("categoria"):
@@ -283,11 +313,14 @@ def confirm_expense_draft(user_id: int) -> str:
     # Remover de latentes
     del gastos_latentes[user_id]
 
+    # Limpiar estado de conversación
+    from src.services.conversation_state_service import limpiar_estado
+    limpiar_estado(user_id)
 
     logger.info(f"✅ Gasto confirmado para user_id={user_id}")
     return (
         f"✅✅✅ GASTO REGISTRADO:\n"
-        f"💰 ${gasto.get('monto')} {gasto.get('moneda')}\n"
+        f"💰 ${gasto.get('monto_total')} {gasto.get('moneda')}\n"
         f"📝 {gasto.get('descripcion')}\n"
         f"📁 {gasto.get('categoria')}\n"
         f"💳 {gasto.get('efectivo_o_tarjeta')}"
