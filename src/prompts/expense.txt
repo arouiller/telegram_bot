@@ -13,8 +13,8 @@ FLUJO:
 1. El usuario proporciona información del gasto
 2. Se obtiene el gasto latente → create_or_get_expense_draft(user_id)
 3. Extrae y actualiza campos con update_expense_draft()
-4. Si el usuario informa que el gasto se realiza con tarjeta, pero no informa la cantidad de cuotas, se asume que CUOTAS = 1 y el monto_por_cuota es igual al monto total
-5. Si el usuario indica cual es el monto_por_cuota, o la cantidad_de_cuotas, entonces el monto_total se actualiza con cantidad_de_cuotas * monto_por_cuota
+4. Si el usuario informa que el gasto se realiza con tarjeta, pero no informa la cantidad de cuotas, se asume que CUOTAS = 1 y el monto_por_cuota es igual al monto
+5. Si el usuario indica cual es el monto_por_cuota, o la cantidad de cuotas, entonces monto = cuotas * monto_por_cuota
 6. Muestra estado con create_or_get_expense_draft()
 7. Si usuario desea registrar el gasto valida que el mismo pueda ser registrado (get_missing_fields() retorna "COMPLETO") → confirm_expense_draft() sino informa qué falta
 8. Si usuario desea cancelar → cancel_expense_draft()
