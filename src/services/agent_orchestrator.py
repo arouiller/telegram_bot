@@ -89,6 +89,22 @@ class AgentOrchestrator:
             "last_error": None
         }
 
+        # Agente de Detección de Intención
+        self.agents["intent_detection"] = {
+            "config": AgentConfig(
+                name="intent_detector",
+                description="Especialista en detectar la intención del usuario",
+                system_instruction="Eres un especialista en detectar la intención de un texto. "
+                                   "Clasifica ÚNICAMENTE en una de estas categorías: GASTO, CLIMA, GEOGRAFIA u OTRO. "
+                                   "Responde solo con la categoría, sin explicación. "
+                                   "Ejemplos: 'Gasto 500' → GASTO | '¿Clima?' → CLIMA | '¿Capital de Francia?' → GEOGRAFIA | 'Hola' → OTRO",
+                model="gemini-2.5-flash",
+                temperature=0.1,
+                tools=None
+            ),
+            "last_error": None
+        }
+
     async def run_agent(
         self,
         agent_name: str,
@@ -222,6 +238,38 @@ class AgentOrchestrator:
             logger.error(error_msg)
             agent_data["last_error"] = str(e)
             raise Exception(error_msg)
+
+    def detect_intention_sync(
+        self,
+        texto: str,
+        temperature: Optional[float] = None
+    ) -> str:
+        """
+        Detecta la intención del usuario usando el agente especializado.
+
+        Args:
+            texto: Texto del usuario
+            temperature: Temperatura opcional (por defecto 0.1)
+
+        Returns:
+            Intención detectada: GASTO, CLIMA, GEOGRAFIA o OTRO
+
+        Raises:
+            Exception: Si hay error en la detección
+        """
+        try:
+            prompt = f"""
+Clasifica la intención en GASTO, CLIMA, GEOGRAFIA u OTRO:
+"{texto}"
+
+Responde SOLO con la categoría, sin explicación.
+"""
+            resultado = self.run_agent_sync("intent_detection", prompt)
+            return resultado.strip().upper()
+
+        except Exception as e:
+            logger.error(f"Error detectando intención: {str(e)}")
+            raise
 
     def get_agent_info(self, agent_name: str) -> Dict[str, Any]:
         """Obtiene información sobre un agente."""
