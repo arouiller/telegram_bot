@@ -9,15 +9,7 @@ import requests
 from src.config import TELEGRAM_TOKEN
 from src.logger import logger
 from src.services.agent_orchestrator import orchestrator
-from src.services.conversation_state_service import (
-    obtener_estado,
-    ESTADO_IDLE,
-    ESTADO_REGISTRANDO_GASTO,
-    ESTADO_ESPERANDO_CONFIRMACION_GASTO
-)
-from src.services.expense_service import (
-    confirmar_gasto
-)
+
 
 session = requests.Session()
 
@@ -287,11 +279,6 @@ def procesar_audio(message):
         # transcribir el audio a texto
         # ==========================================
         inicio = time.time()
-
-        # Obtener estado actual del usuario
-        estado = obtener_estado(user_id)
-        estado_actual = estado["estado"]
-        logger.info(f"📊 Estado actual del usuario {user_id}: {estado_actual}")
 
         # Transcribir el audio a texto
         transcripcion_inicio = time.time()
