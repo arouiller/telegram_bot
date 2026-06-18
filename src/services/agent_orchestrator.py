@@ -18,9 +18,8 @@ from src.logger import logger
 from src.services.geography_services import obtener_capital, obtener_pais
 from src.services.weather_service import get_weather, get_latitude_and_longitude
 from src.services.expense_service import (
-    create_expense_draft,
+    create_or_get_expense_draft,
     update_expense_draft,
-    get_expense_draft,
     confirm_expense_draft,
     cancel_expense_draft,
     get_missing_fields
@@ -190,9 +189,8 @@ class AgentOrchestrator:
                 model="gemini-2.5-flash",
                 temperature=0.2,
                 tools=[
-                    create_expense_draft,
+                    create_or_get_expense_draft,
                     update_expense_draft,
-                    get_expense_draft,
                     confirm_expense_draft,
                     cancel_expense_draft,
                     get_missing_fields
