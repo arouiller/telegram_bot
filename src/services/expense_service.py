@@ -110,6 +110,11 @@ def _validar_campos(gasto: Dict) -> Tuple[bool, List[str]]:
     return len(campos_faltantes) == 0, campos_faltantes
 
 
+def _get_expense_draft_dict(user_id: int) -> Optional[Dict]:
+    """Obtiene el gasto latente como diccionario (uso interno)."""
+    return gastos_latentes.get(user_id)
+
+
 def _formatear_estado_gasto(gasto: Dict) -> str:
     """Formatea un gasto para mostrarlo al usuario."""
     texto = "📊 ESTADO ACTUAL:\n"
@@ -145,12 +150,12 @@ def _formatear_estado_gasto(gasto: Dict) -> str:
 # OPERACIONES DE GASTO LATENTE
 # =====================================================
 
-def create_expense_draft(user_id: int) -> int:
+def create_expense_draft(user_id: int) -> str:
     """
     Crea un gasto latente/borrador nuevo.
 
     Returns:
-        expense_id (user_id en este caso)
+        String confirmando creación
     """
     hoy = datetime.now().strftime("%d/%m/%Y")
 
@@ -172,46 +177,40 @@ def create_expense_draft(user_id: int) -> int:
     establecer_estado(user_id, ESTADO_REGISTRANDO_GASTO)
 
     logger.info(f"💼 Gasto latente creado para user_id={user_id}")
-    return user_id
+    return "✅ Gasto creado. Proporciona detalles (monto, descripción, etc.)"
 
 
-def update_expense_draft(user_id: int, field: str, value) -> Dict:
+def update_expense_draft(user_id: int, field: str, value: str) -> str:
     """
     Actualiza un campo del gasto latente.
 
+    Args:
+        user_id: ID del usuario
+        field: Campo a actualizar
+        value: Valor nuevo (como string, se parsea según el campo)
+
     Returns:
-        Gasto actualizado
+        String con estado actualizado
     """
     if user_id not in gastos_latentes:
         logger.warning(f"⚠️ No hay gasto latente para user_id={user_id}")
-        return {}
+        return "❌ No hay gasto en proceso."
 
     gasto = gastos_latentes[user_id]
 
-    # Conversiones de tipo
-    if field == "monto" and value is not None:
-        try:
+    # Conversiones de tipo según el campo
+    try:
+        if field == "monto" and value:
             gasto[field] = float(value)
-        except ValueError:
-            logger.error(f"Error convirtiendo monto: {value}")
-            return gasto
-
-    elif field == "cuotas" and value is not None:
-        try:
+        elif field == "cuotas" and value:
             gasto[field] = int(value)
-        except ValueError:
-            logger.error(f"Error convirtiendo cuotas: {value}")
-            return gasto
-
-    elif field == "monto_por_cuota" and value is not None:
-        try:
+        elif field == "monto_por_cuota" and value:
             gasto[field] = float(value)
-        except ValueError:
-            logger.error(f"Error convirtiendo monto_por_cuota: {value}")
-            return gasto
-
-    else:
-        gasto[field] = value
+        else:
+            gasto[field] = value
+    except (ValueError, TypeError) as e:
+        logger.error(f"Error convirtiendo {field}={value}: {str(e)}")
+        return f"❌ Error: No pude procesar {field}={value}"
 
     # Lógica automática: recalcular monto_por_cuota si cambió monto o cuotas
     if field in ["monto", "cuotas"]:
@@ -220,65 +219,69 @@ def update_expense_draft(user_id: int, field: str, value) -> Dict:
             logger.info(f"Recalculado monto_por_cuota: {gasto['monto_por_cuota']}")
 
     # Auto-clasificar categoría si tiene descripción y aún no tiene categoría
-    if field == "descripcion" and not gasto.get("categoria"):
+    if field == "descripcion" and value and not gasto.get("categoria"):
         gasto["categoria"] = _clasificar_gasto(value)
         logger.info(f"Categoría sugerida: {gasto['categoria']}")
 
     logger.info(f"✏️ Gasto latente actualizado: {field}={value}")
-    return gasto
+    return f"✅ {field.capitalize()} actualizado a: {value}"
 
 
-def get_expense_draft(user_id: int) -> Optional[Dict]:
+def get_expense_draft(user_id: int) -> str:
     """
-    Obtiene el gasto latente del usuario.
+    Obtiene el estado del gasto latente del usuario.
 
     Returns:
-        Gasto latente o None
+        String formateado con el estado del gasto
     """
     gasto = gastos_latentes.get(user_id)
 
     if not gasto:
         logger.warning(f"⚠️ No hay gasto latente para user_id={user_id}")
-        return None
+        return "No hay gasto en proceso."
 
-    return gasto
+    return _formatear_estado_gasto(gasto)
 
 
-def get_missing_fields(user_id: int) -> List[str]:
+def get_missing_fields(user_id: int) -> str:
     """
-    Obtiene lista de campos faltantes.
+    Obtiene los campos faltantes.
 
     Returns:
-        Lista de campos que faltan
+        String con los campos que faltan o "COMPLETO"
     """
     gasto = gastos_latentes.get(user_id)
 
     if not gasto:
-        return []
+        return "No hay gasto en proceso."
 
     _, campos_faltantes = _validar_campos(gasto)
-    return campos_faltantes
+
+    if not campos_faltantes:
+        return "COMPLETO"
+
+    return ", ".join(campos_faltantes)
 
 
-def confirm_expense_draft(user_id: int) -> Dict:
+def confirm_expense_draft(user_id: int) -> str:
     """
     Confirma y guarda el gasto latente.
 
     Returns:
-        Gasto confirmado
+        String confirmando guardado o indicando qué falta
     """
     gasto = gastos_latentes.get(user_id)
 
     if not gasto:
         logger.error(f"❌ No hay gasto latente para user_id={user_id}")
-        return {}
+        return "❌ No hay gasto en proceso."
 
     # Validar que todos los campos están completos
     es_valido, campos_faltantes = _validar_campos(gasto)
 
     if not es_valido:
         logger.warning(f"⚠️ Gasto incompleto. Falta: {campos_faltantes}")
-        return gasto
+        return f"⏳ Falta información: {', '.join(campos_faltantes)}"
 
     # Cambiar estado a confirmado
     gasto["estado"] = "confirmed"
@@ -293,7 +296,13 @@ def confirm_expense_draft(user_id: int) -> Dict:
     limpiar_estado(user_id)
 
     logger.info(f"✅ Gasto confirmado para user_id={user_id}")
-    return gasto
+    return (
+        f"✅✅✅ GASTO REGISTRADO:\n"
+        f"💰 ${gasto.get('monto')} {gasto.get('moneda')}\n"
+        f"📝 {gasto.get('descripcion')}\n"
+        f"📁 {gasto.get('categoria')}\n"
+        f"💳 {gasto.get('efectivo_o_tarjeta')}"
+    )
 
 
 def cancel_expense_draft(user_id: int) -> bool:
@@ -323,17 +332,17 @@ def crear_gasto_pendiente(user_id: int, descripcion: str, monto: float) -> str:
     Crea un gasto pendiente (compatible con código anterior).
     Usa el nuevo sistema de gasto latente.
     """
-    expense_id = create_expense_draft(user_id)
-    update_expense_draft(expense_id, "descripcion", descripcion)
-    update_expense_draft(expense_id, "monto", monto)
+    create_expense_draft(user_id)
+    update_expense_draft(user_id, "descripcion", descripcion)
+    update_expense_draft(user_id, "monto", str(monto))
 
-    gasto = gastos_latentes[user_id]
-    return gasto.get("categoria", "Otros")
+    gasto = _get_expense_draft_dict(user_id)
+    return gasto.get("categoria", "Otros") if gasto else "Otros"
 
 
 def obtener_gasto_pendiente(user_id: int) -> Optional[Dict]:
     """Obtiene el gasto pendiente (compatible con código anterior)."""
-    return get_expense_draft(user_id)
+    return _get_expense_draft_dict(user_id)
 
 
 def confirmar_gasto(user_id: int) -> str:
