@@ -144,33 +144,46 @@ def _formatear_estado_gasto(gasto: Dict) -> str:
 # OPERACIONES DE GASTO LATENTE
 # =====================================================
 
-def create_expense_draft(user_id: int) -> str:
+def create_or_get_expense_draft(user_id: int) -> str:
     """
     Crea un gasto latente/borrador nuevo.
 
     Returns:
         String confirmando creación
     """
-    hoy = datetime.now().strftime("%d/%m/%Y")
 
-    gasto = {
-        "user_id": user_id,
-        "monto": None,
-        "descripcion": None,
-        "moneda": "ARS",
-        "categoria": None,
-        "fecha": hoy,
-        "efectivo_o_tarjeta": None,
-        "cuotas": None,
-        "monto_por_cuota": None,
-        "estado": "draft",
-        "created_at": datetime.now().isoformat()
-    }
+    """
+    Obtiene el estado del gasto latente del usuario.
 
-    gastos_latentes[user_id] = gasto
+    Returns:
+        String formateado con el estado del gasto
+    """
+    gasto = gastos_latentes.get(user_id)
 
-    logger.info(f"💼 Gasto latente creado para user_id={user_id}")
-    return "✅ Gasto creado. Proporciona detalles (monto, descripción, etc.)"
+    if not gasto:
+
+        hoy = datetime.now().strftime("%d/%m/%Y")
+
+        gasto = {
+            "user_id": user_id,
+            "monto": None,
+            "descripcion": None,
+            "moneda": "ARS",
+            "categoria": None,
+            "fecha": hoy,
+            "efectivo_o_tarjeta": None,
+            "cuotas": None,
+            "monto_por_cuota": None,
+            "estado": "draft",
+            "created_at": datetime.now().isoformat()
+        }
+
+        gastos_latentes[user_id] = gasto
+
+        logger.info(f"💼 Gasto latente creado para user_id={user_id}")
+
+
+    return _formatear_estado_gasto(gasto)
 
 
 def update_expense_draft(user_id: int, field: str, value: str) -> str:
@@ -219,21 +232,6 @@ def update_expense_draft(user_id: int, field: str, value: str) -> str:
     logger.info(f"✏️ Gasto latente actualizado: {field}={value}")
     return f"✅ {field.capitalize()} actualizado a: {value}"
 
-
-def get_expense_draft(user_id: int) -> str:
-    """
-    Obtiene el estado del gasto latente del usuario.
-
-    Returns:
-        String formateado con el estado del gasto
-    """
-    gasto = gastos_latentes.get(user_id)
-
-    if not gasto:
-        logger.warning(f"⚠️ No hay gasto latente para user_id={user_id}")
-        return "No hay gasto en proceso."
-
-    return _formatear_estado_gasto(gasto)
 
 
 def get_missing_fields(user_id: int) -> str:
@@ -311,57 +309,3 @@ def cancel_expense_draft(user_id: int) -> bool:
 
     logger.info(f"❌ Gasto latente cancelado para user_id={user_id}")
     return True
-
-
-# =====================================================
-# OPERACIONES COMPATIBLES (LEGADO)
-# =====================================================
-
-def crear_gasto_pendiente(user_id: int, descripcion: str, monto: float) -> str:
-    """
-    Crea un gasto pendiente (compatible con código anterior).
-    Usa el nuevo sistema de gasto latente.
-    """
-    create_expense_draft(user_id)
-    update_expense_draft(user_id, "descripcion", descripcion)
-    update_expense_draft(user_id, "monto", str(monto))
-
-    gasto = _get_expense_draft_dict(user_id)
-    return gasto.get("categoria", "Otros") if gasto else "Otros"
-
-
-def obtener_gasto_pendiente(user_id: int) -> Optional[Dict]:
-    """Obtiene el gasto pendiente (compatible con código anterior)."""
-    return _get_expense_draft_dict(user_id)
-
-
-def confirmar_gasto(user_id: int) -> str:
-    """Confirma un gasto (compatible con código anterior)."""
-    gasto = confirm_expense_draft(user_id)
-
-    if not gasto:
-        return "No hay gastos pendientes."
-
-    return (
-        f"✅ Gasto registrado.\n\n"
-        f"Descripción: {gasto.get('descripcion')}\n"
-        f"Monto: ${gasto.get('monto'):.2f} {gasto.get('moneda')}\n"
-        f"Categoría: {gasto.get('categoria')}"
-    )
-
-
-def cancelar_gasto(user_id: int) -> str:
-    """Cancela un gasto (compatible con código anterior)."""
-    resultado = cancel_expense_draft(user_id)
-    return "❌ Registro cancelado." if resultado else "No hay gastos pendientes."
-
-
-def actualizar_categoria(user_id: int, categoria: str) -> str:
-    """Actualiza la categoría (compatible con código anterior)."""
-    gasto = get_expense_draft(user_id)
-
-    if not gasto:
-        return "No hay gastos pendientes."
-
-    update_expense_draft(user_id, "categoria", categoria)
-    return f"✅ Categoría actualizada a {categoria}."
