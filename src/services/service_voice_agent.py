@@ -302,16 +302,17 @@ def procesar_audio(message):
         # ==========================================
         # Procesar según estado
         # ==========================================
-        if estado_actual == ESTADO_IDLE:
-            resultado = procesar_estado_idle(texto, user_id)
-        elif estado_actual == ESTADO_REGISTRANDO_GASTO:
-            # En estado de registro de gasto, el agente continúa el diálogo
-            logger.info(f"💰 Continuando registro de gasto")
-            resultado = procesar_gasto(texto, user_id)
-        elif estado_actual == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
-            resultado = procesar_confirmacion_gasto(texto, user_id)
-        else:
-            resultado = "❓ Estado desconocido. Intenta con /start"
+        resultado = procesar_estado_idle(texto, user_id)
+        #if estado_actual == ESTADO_IDLE:
+        #    resultado = procesar_estado_idle(texto, user_id)
+        #elif estado_actual == ESTADO_REGISTRANDO_GASTO:
+        #    # En estado de registro de gasto, el agente continúa el diálogo
+        #    logger.info(f"💰 Continuando registro de gasto")
+        #    resultado = procesar_gasto(texto, user_id)
+        #elif estado_actual == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
+        #    resultado = procesar_confirmacion_gasto(texto, user_id)
+        #else:
+        #    resultado = "❓ Estado desconocido. Intenta con /start"
 
         logger.info(f"⏱️ Procesamiento completado en {time.time() - inicio:.3f}s")
 
