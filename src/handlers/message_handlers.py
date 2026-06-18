@@ -8,15 +8,8 @@ import time
 from telebot import types as telebot_types
 
 from src.bot import bot
-from src.config import LATITUDE, LONGITUDE
 from src.logger import logger
-from src.services.service_voice_agent import procesar_audio_inline
-from src.services.weather_service import get_weather
-from src.services.agent_usage_examples import (
-    geography_query,
-    list_available_agents,
-    get_orchestrator_status
-)
+from src.services.service_voice_agent import procesar_audio
 
 
 # ============================================================
@@ -30,7 +23,7 @@ def handle_voice(message):
 
     try:
         threading.Thread(
-            target=procesar_audio_inline,
+            target=procesar_audio,
             args=(message,),
             daemon=True
         ).start()

@@ -15,6 +15,9 @@ from src.services.conversation_state_service import (
     ESTADO_REGISTRANDO_GASTO,
     ESTADO_ESPERANDO_CONFIRMACION_GASTO
 )
+from src.services.expense_service import (
+    confirmar_gasto
+)
 
 session = requests.Session()
 
@@ -232,7 +235,7 @@ Devuelve una sola palabra.
         raise
 
 
-def procesar_audio_inline(message):
+def procesar_audio(message):
     """
     Procesa mensaje de audio desde Telegram de forma asíncrona.
 

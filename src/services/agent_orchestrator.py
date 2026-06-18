@@ -192,8 +192,8 @@ FLUJO:
 2. Si no existe gasto → create_expense_draft(user_id)
 3. Extrae y actualiza campos con update_expense_draft()
 4. Muestra estado con get_expense_draft()
-5. Si usuario dice "Registrar" → confirm_expense_draft()
-6. Si usuario dice "Cancela" → cancel_expense_draft()
+5. Si usuario desea desea registrar el gasto valida que el mismo pueda ser registrado (get_missing_fields() retorna "COMPLETO")  → confirm_expense_draft() sino informa qué falta
+6. Si usuario desea cancelar → cancel_expense_draft()
 
 INSTRUCCIONES IMPORTANTES:
 - Siempre pasa strings a update_expense_draft (incluso números: "500", "3")
