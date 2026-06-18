@@ -113,8 +113,8 @@ def _formatear_estado_gasto(gasto: Dict) -> str:
     """Formatea un gasto para mostrarlo al usuario."""
     texto = "📊 ESTADO ACTUAL:\n"
 
-    if gasto.get("monto") is not None:
-        texto += f"├─ 💰 Monto: ${gasto['monto']} {gasto.get('moneda', 'ARS')}\n"
+    if gasto.get("monto_total") is not None:
+        texto += f"├─ 💰 Monto: ${gasto['monto_total']} {gasto.get('moneda', 'ARS')}\n"
 
     if gasto.get("descripcion"):
         texto += f"├─ 📝 Descripción: {gasto['descripcion']}\n"
