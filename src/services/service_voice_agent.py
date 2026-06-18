@@ -9,15 +9,10 @@ import requests
 from src.config import TELEGRAM_TOKEN
 from src.logger import logger
 from src.services.agent_orchestrator import orchestrator
-from src.services.expense_service import (
-    crear_gasto_pendiente,
-    confirmar_gasto,
-    cancelar_gasto,
-    actualizar_categoria
-)
 from src.services.conversation_state_service import (
     obtener_estado,
     ESTADO_IDLE,
+    ESTADO_REGISTRANDO_GASTO,
     ESTADO_ESPERANDO_CONFIRMACION_GASTO
 )
 
@@ -26,67 +21,40 @@ session = requests.Session()
 
 def procesar_gasto(texto: str, user_id: int) -> str:
     """
-    Procesa un audio identificado como gasto.
+    Procesa un audio identificado como gasto usando el agente conversacional.
+
+    El agente maneja todo el ciclo de vida del gasto:
+    - Crear gasto latente
+    - Extraer información del audio
+    - Actualizar campos
+    - Mostrar estado
+    - Pedir información faltante
 
     Args:
         texto: Texto del usuario con información de gasto
         user_id: ID del usuario
 
     Returns:
-        Confirmación de gasto creado o mensaje de error
+        Respuesta del agente con estado y próximos pasos
     """
-    logger.info(f"💰 Procesando gasto desde audio: {texto[:50]}...")
+    logger.info(f"💰 Procesando gasto desde audio (con agente): {texto[:50]}...")
 
     try:
         prompt = f"""
-Usuario dijo: {texto}
+User ID: {user_id}
+Texto del usuario: {texto}
 
-Extrae información de gasto. Si menciona un gasto, devuelve exactamente:
-GASTO|descripcion|monto
-
-Ejemplo:
-GASTO|Carrefour|15000
-
-Si no hay información clara de gasto, devuelve:
-NO_GASTO
-
-Sé conciso en la descripción.
+Procesa esta información de gasto conversacionalmente.
+Si el usuario menciona información de gasto (monto, descripción, medio de pago, etc),
+extrae y actualiza el gasto latente.
+Muestra el estado actual y qué está pendiente.
 """
-
-        resultado = orchestrator.run_agent_sync("geography", prompt)
-        resultado = resultado.strip()
-
-        if resultado.startswith("GASTO|"):
-            try:
-                partes = resultado.split("|")
-                if len(partes) >= 3:
-                    descripcion = partes[1].strip()
-                    monto = float(partes[2].strip())
-
-                    categoria = crear_gasto_pendiente(
-                        user_id,
-                        descripcion,
-                        monto
-                    )
-
-                    logger.info(f"💰 Gasto creado: {descripcion} ${monto:.2f}")
-
-                    return (
-                        f"💰 Detecté un gasto.\n\n"
-                        f"Descripción: {descripcion}\n"
-                        f"Monto: ${monto:.2f}\n"
-                        f"Categoría sugerida: {categoria}\n\n"
-                        f"¿Deseas registrarlo? (sí/no)"
-                    )
-            except (ValueError, IndexError) as e:
-                logger.error(f"Error parseando gasto: {str(e)}")
-                return "No pude procesar la información del gasto. ¿Puedes repetir?"
-
-        return "No detecté información clara de gasto. ¿Podrías ser más específico?"
+        resultado = orchestrator.run_agent_sync("expense", prompt)
+        return resultado.strip()
 
     except Exception as e:
         logger.error(f"Error en procesar_gasto: {str(e)}")
-        raise
+        return "❌ Error procesando gasto. Intenta nuevamente."
 
 def procesar_clima(texto: str) -> str:
     """
@@ -333,6 +301,10 @@ def procesar_audio_inline(message):
         # ==========================================
         if estado_actual == ESTADO_IDLE:
             resultado = procesar_estado_idle(texto, user_id)
+        elif estado_actual == ESTADO_REGISTRANDO_GASTO:
+            # En estado de registro de gasto, el agente continúa el diálogo
+            logger.info(f"💰 Continuando registro de gasto")
+            resultado = procesar_gasto(texto, user_id)
         elif estado_actual == ESTADO_ESPERANDO_CONFIRMACION_GASTO:
             resultado = procesar_confirmacion_gasto(texto, user_id)
         else:
