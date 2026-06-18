@@ -69,43 +69,6 @@ def detectar_intension(texto: str) -> str:
     return "OTRO"
 
 
-def detectar_intension_inteligente(texto: str) -> str:
-    """
-    Detecta la intención del usuario con estrategia híbrida.
-
-    Primero intenta detectar con palabras clave (rápido y local).
-    Si no es claro (intención = "OTRO"), consulta el agente (inteligente).
-
-    Args:
-        texto: Texto del usuario
-
-    Returns:
-        Intención detectada: GASTO, CLIMA, GEOGRAFIA o OTRO
-    """
-    try:
-        # Paso 1: Intentar con palabras clave (rápido)
-        intension_local = detectar_intension(texto)
-
-        if intension_local != "OTRO":
-            logger.info(f"🎯 Intención detectada localmente: {intension_local}")
-            return intension_local
-
-        # Paso 2: Si no es claro, consultar agente (inteligente)
-        logger.info(f"❓ Intención no clara, consultando agente...")
-        try:
-            intension_agente = orchestrator.detect_intention_sync(texto)
-            logger.info(f"🎯 Intención detectada por agente: {intension_agente}")
-            return intension_agente
-
-        except Exception as e:
-            logger.error(f"Error consultando agente, usando fallback: {str(e)}")
-            return "OTRO"
-
-    except Exception as e:
-        logger.error(f"Error en detectar_intension_inteligente: {str(e)}")
-        raise
-
-
 def procesar_gasto(texto: str, user_id: int) -> str:
     """
     Procesa un audio identificado como gasto.
@@ -242,14 +205,14 @@ def procesar_estado_idle(texto: str, user_id: int) -> str:
     logger.info(f"🤖 Procesando estado IDLE: {texto[:50]}... user_id={user_id}")
 
     try:
-        intension = detectar_intension_inteligente(texto)
-        logger.info(f"📊 Intención detectada: {intension}")
+        intencion = orchestrator.detect_intention_sync(texto)
+        logger.info(f"📊 Intención detectada: {intencion}")
 
-        if intension == "GASTO":
+        if intencion == "GASTO":
             logger.info(f"💰 Procesando como GASTO")
             return procesar_gasto(texto, user_id)
 
-        elif intension == "CLIMA":
+        elif intencion == "CLIMA":
             logger.info(f"🌤️ Procesando como CLIMA")
             try:
                 return procesar_clima(texto)
@@ -257,11 +220,11 @@ def procesar_estado_idle(texto: str, user_id: int) -> str:
                 logger.error(f"Error obteniendo clima: {str(e)}")
                 return "No pude obtener la información climática en este momento."
 
-        elif intension == "GEOGRAFIA":
+        elif intencion == "GEOGRAFIA":
             logger.info(f"📍 Procesando como GEOGRAFIA")
             return procesar_geografia(texto)
 
-        else:  # intension == "OTRO"
+        else:  # intencion == "OTRO"
             logger.info(f"❓ Procesando como OTRA consulta")
             return (
                 "No estoy seguro de tu pregunta. Puedo ayudarte con:\n"

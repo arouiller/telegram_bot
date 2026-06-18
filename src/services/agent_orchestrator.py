@@ -17,6 +17,52 @@ from src.logger import logger
 from src.services.geography_services import obtener_capital, obtener_pais
 from src.services.weather_service import get_weather
 
+# Palabras clave para detección local de intención
+_PALABRAS_CLAVE_GASTO = [
+    "registrar", "gasto", "pagar", "gasté", "pagué",
+    "salida", "cuenta", "factura", "costo", "egreso"
+]
+
+_PALABRAS_CLAVE_CLIMA = [
+    "clima", "temperatura", "lluvia", "tiempo",
+    "frío", "calor", "soleado", "nublado", "cielo",
+    "nubes", "viento", "humedad", "llueve", "lluvia"
+]
+
+_PALABRAS_CLAVE_GEOGRAFIA = [
+    "capital", "país", "pais", "ciudad", "ubicación",
+    "donde", "dónde", "capital de", "geografía", "geografia"
+]
+
+_AVOID_DETECTION = True
+
+def _detect_intention_local(texto: str) -> str:
+    """
+    Detecta la intención del usuario basado en palabras clave (rápido, local).
+
+    Args:
+        texto: Texto del usuario
+
+    Returns:
+        GASTO, CLIMA, GEOGRAFIA o OTRO
+    """
+
+    if _AVOID_DETECTION:
+        return "OTRO"
+
+    texto_lower = texto.lower()
+
+    if any(palabra in texto_lower for palabra in _PALABRAS_CLAVE_GASTO):
+        return "GASTO"
+
+    if any(palabra in texto_lower for palabra in _PALABRAS_CLAVE_CLIMA):
+        return "CLIMA"
+
+    if any(palabra in texto_lower for palabra in _PALABRAS_CLAVE_GEOGRAFIA):
+        return "GEOGRAFIA"
+
+    return "OTRO"
+
 
 @dataclass
 class AgentConfig:
@@ -245,7 +291,10 @@ class AgentOrchestrator:
         temperature: Optional[float] = None
     ) -> str:
         """
-        Detecta la intención del usuario usando el agente especializado.
+        Detecta la intención del usuario con estrategia híbrida.
+
+        Primero intenta detectar con palabras clave (rápido, local).
+        Si no es claro (resultado = OTRO), consulta el agente (inteligente).
 
         Args:
             texto: Texto del usuario
@@ -253,22 +302,35 @@ class AgentOrchestrator:
 
         Returns:
             Intención detectada: GASTO, CLIMA, GEOGRAFIA o OTRO
-
-        Raises:
-            Exception: Si hay error en la detección
         """
         try:
-            prompt = f"""
+            # Paso 1: Intentar con palabras clave (rápido)
+            intension_local = _detect_intention_local(texto)
+
+            if intension_local != "OTRO":
+                logger.info(f"🎯 Intención detectada localmente: {intension_local}")
+                return intension_local
+
+            # Paso 2: Si no es claro, consultar agente (inteligente)
+            logger.info(f"❓ Intención no clara, consultando agente...")
+            try:
+                prompt = f"""
 Clasifica la intención en GASTO, CLIMA, GEOGRAFIA u OTRO:
 "{texto}"
 
 Responde SOLO con la categoría, sin explicación.
 """
-            resultado = self.run_agent_sync("intent_detection", prompt)
-            return resultado.strip().upper()
+                resultado = self.run_agent_sync("intent_detection", prompt, temperature)
+                intension_agente = resultado.strip().upper()
+                logger.info(f"🎯 Intención detectada por agente: {intension_agente}")
+                return intension_agente
+
+            except Exception as e:
+                logger.error(f"Error consultando agente, usando fallback: {str(e)}")
+                return "OTRO"
 
         except Exception as e:
-            logger.error(f"Error detectando intención: {str(e)}")
+            logger.error(f"Error en detect_intention_sync: {str(e)}")
             raise
 
     def get_agent_info(self, agent_name: str) -> Dict[str, Any]:
